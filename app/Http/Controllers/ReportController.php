@@ -6497,7 +6497,7 @@ class ReportController extends BaseController
         $effective_opening_balance = $client_effective_opening - $provider_effective_opening;
 
         // Fetch Transactions in range
-        $sales = Sale::with('details.product.category')
+        $sales = Sale::with(['details.product.category', 'warehouse:id,name'])
             ->where('client_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
@@ -6526,7 +6526,7 @@ class ReportController extends BaseController
         $returns_p = collect();
 
         if ($provider_id) {
-            $purchases = Purchase::with('details.product')
+            $purchases = Purchase::with(['details.product', 'warehouse:id,name'])
                 ->where('provider_id', $provider_id)
                 ->whereBetween('date', [$start_date, $end_date])
                 ->where('deleted_at', '=', null)
@@ -6559,6 +6559,9 @@ class ReportController extends BaseController
             })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
+            if ($sale->warehouse) {
+                $particulars .= " [" . strtoupper($sale->warehouse->name) . "]";
+            }
             if ($sale->notes) {
                 $particulars .= "\n" . $sale->notes;
             }
@@ -6621,6 +6624,9 @@ class ReportController extends BaseController
             })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
+            if ($purchase->warehouse) {
+                $particulars .= " [" . strtoupper($purchase->warehouse->name) . "]";
+            }
             if ($purchase->notes) {
                 $particulars .= "\n" . $purchase->notes;
             }
@@ -6750,7 +6756,7 @@ class ReportController extends BaseController
         $effective_opening_balance = $opening_balance + ($payments_before + $returns_before) - $purchases_before;
 
         // Fetch Transactions in range
-        $purchases = Purchase::with('details.product')
+        $purchases = Purchase::with(['details.product', 'warehouse:id,name'])
             ->where('provider_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
@@ -6782,6 +6788,9 @@ class ReportController extends BaseController
             })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
+            if ($purchase->warehouse) {
+                $particulars .= " [" . strtoupper($purchase->warehouse->name) . "]";
+            }
             if ($purchase->notes) {
                 $particulars .= "\n" . $purchase->notes;
             }
