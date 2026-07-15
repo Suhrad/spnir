@@ -763,7 +763,7 @@ class ClientController extends BaseController
 
         $q = Sale::query()
             ->whereNull('deleted_at')
-            ->with(['client:id,name', 'warehouse:id,name'])
+            ->with(['client:id,name', 'warehouse:id,name,shortcut'])
             ->where('client_id', $request->id)
             ->when($request->filled('warehouse_id'), function ($query) use ($request) {
                 return $query->where('warehouse_id', $request->warehouse_id);
@@ -805,7 +805,7 @@ class ClientController extends BaseController
                 'id'              => $sale->id,
                 'date'            => $sale->date,
                 'Ref'             => $sale->Ref,
-                'warehouse_name'  => optional($sale->warehouse)->name,
+                'warehouse_name'  => optional($sale->warehouse)->shortcut ?: optional($sale->warehouse)->name,
                 'client_name'     => optional($sale->client)->name,
                 'statut'          => $sale->statut,
                 'GrandTotal'      => $sale->GrandTotal,
@@ -1025,7 +1025,7 @@ class ClientController extends BaseController
         $offSet  = ($page - 1) * ($perPage > 0 ? $perPage : 0);
 
         $q = Quotation::query()
-            ->with('client:id,name','warehouse:id,name')
+            ->with('client:id,name','warehouse:id,name,shortcut')
             ->whereNull('deleted_at')
             ->where('client_id', $request->id)
             ->when($request->filled('warehouse_id'), function ($query) use ($request) {
@@ -1063,7 +1063,7 @@ class ClientController extends BaseController
                 'date'           => $Quotation->date,
                 'Ref'            => $Quotation->Ref,
                 'statut'         => $Quotation->statut,
-                'warehouse_name' => optional($Quotation->warehouse)->name,
+                'warehouse_name' => optional($Quotation->warehouse)->shortcut ?: optional($Quotation->warehouse)->name,
                 'client_name'    => optional($Quotation->client)->name,
                 'GrandTotal'     => $Quotation->GrandTotal,
             ];
@@ -1092,7 +1092,7 @@ class ClientController extends BaseController
         $offSet  = ($page - 1) * ($perPage > 0 ? $perPage : 0);
 
         $q = SaleReturn::query()
-            ->with('sale:id,Ref','client:id,name','warehouse:id,name')
+            ->with('sale:id,Ref','client:id,name','warehouse:id,name,shortcut')
             ->whereNull('deleted_at')
             ->where('client_id', $request->id)
             ->when($request->filled('warehouse_id'), function ($query) use ($request) {
@@ -1134,7 +1134,7 @@ class ClientController extends BaseController
                 'client_name'    => optional($r->client)->name,
                 'sale_ref'       => $r->sale ? $r->sale->Ref : '---',
                 'sale_id'        => $r->sale ? $r->sale->id : null,
-                'warehouse_name' => optional($r->warehouse)->name,
+                'warehouse_name' => optional($r->warehouse)->shortcut ?: optional($r->warehouse)->name,
                 'GrandTotal'     => $r->GrandTotal,
                 'paid_amount'    => $r->paid_amount,
                 'due'            => (float)$r->GrandTotal - (float)$r->paid_amount,

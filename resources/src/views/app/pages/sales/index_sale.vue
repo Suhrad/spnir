@@ -66,10 +66,17 @@
     <b-sidebar id="sidebar-right" :title="$t('Filter')" bg-variant="white" right shadow>
       <div class="px-3 py-2">
         <b-row>
-          <!-- date  -->
+          <!-- From Date  -->
           <b-col md="12">
-            <b-form-group :label="$t('date')">
-              <b-form-input type="date" v-model="Filter_date"></b-form-input>
+            <b-form-group :label="$t('From_Date') || 'From Date'">
+              <b-form-input type="date" v-model="Filter_start_date"></b-form-input>
+            </b-form-group>
+          </b-col>
+
+          <!-- To Date  -->
+          <b-col md="12">
+            <b-form-group :label="$t('To_Date') || 'To Date'">
+              <b-form-input type="date" v-model="Filter_end_date"></b-form-input>
             </b-form-group>
           </b-col>
 
@@ -732,7 +739,8 @@ export default {
       EditPaiementMode: false,
       Filter_Client: "",
       Filter_Ref: "",
-      Filter_date: "",
+      Filter_start_date: "",
+      Filter_end_date: "",
       Filter_status: "",
       Filter_Payment: "",
       Filter_warehouse: "",
@@ -1106,7 +1114,8 @@ export default {
       this.Filter_Payment = "";
       this.Filter_shipping = "";
       this.Filter_Ref = "";
-      this.Filter_date = "";
+      this.Filter_start_date = "";
+      this.Filter_end_date = "";
       this.Filter_warehouse = "";
       this.Filter_BusinessCompany = "";
       this.Get_Sales(this.serverParams.page);
@@ -1254,9 +1263,13 @@ export default {
              const cl = self.customers.find(c => c.id == self.Filter_Client);
              if (cl) filterText.push(`Customer: ${cl.name}`);
            }
-           if (self.Filter_date) {
-             filterText.push(`Date: ${self.Filter_date}`);
-           }
+           if (self.Filter_start_date && self.Filter_end_date) {
+              filterText.push(`Period: ${self.Filter_start_date} to ${self.Filter_end_date}`);
+            } else if (self.Filter_start_date) {
+              filterText.push(`From: ${self.Filter_start_date}`);
+            } else if (self.Filter_end_date) {
+              filterText.push(`To: ${self.Filter_end_date}`);
+            }
 
            if (filterText.length > 0) {
               pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
@@ -1401,6 +1414,12 @@ export default {
       } else if (this.Filter_BusinessCompany === null) {
         this.Filter_BusinessCompany = "";
       }
+      if (this.Filter_start_date === null) {
+        this.Filter_start_date = "";
+      }
+      if (this.Filter_end_date === null) {
+        this.Filter_end_date = "";
+      }
     },
     onRowClick(params) {
       this.$router.push({
@@ -1420,8 +1439,10 @@ export default {
             page +
             "&Ref=" +
             this.Filter_Ref +
-            "&date=" +
-            this.Filter_date +
+            "&start_date=" +
+            this.Filter_start_date +
+            "&end_date=" +
+            this.Filter_end_date +
             "&client_id=" +
             this.Filter_Client +
             "&statut=" +

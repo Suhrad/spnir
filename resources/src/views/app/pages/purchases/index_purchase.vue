@@ -65,10 +65,17 @@
     <b-sidebar id="sidebar-right" :title="$t('Filter')" bg-variant="white" right shadow>
       <div class="px-3 py-2">
         <b-row>
-          <!-- date  -->
+          <!-- From Date  -->
           <b-col md="12">
-            <b-form-group :label="$t('date')">
-              <b-form-input type="date" v-model="Filter_date"></b-form-input>
+            <b-form-group :label="$t('From_Date') || 'From Date'">
+              <b-form-input type="date" v-model="Filter_start_date"></b-form-input>
+            </b-form-group>
+          </b-col>
+
+          <!-- To Date  -->
+          <b-col md="12">
+            <b-form-group :label="$t('To_Date') || 'To Date'">
+              <b-form-input type="date" v-model="Filter_end_date"></b-form-input>
             </b-form-group>
           </b-col>
 
@@ -416,7 +423,8 @@ export default {
       Filter_Payment: "",
       Filter_warehouse: "",
       Filter_Ref: "",
-      Filter_date: "",
+      Filter_start_date: "",
+      Filter_end_date: "",
       Purchase_id: "",
       suppliers: [],
       warehouses: [],
@@ -646,7 +654,8 @@ export default {
       this.Filter_status = "";
       this.Filter_Payment = "";
       this.Filter_Ref = "";
-      this.Filter_date = "";
+      this.Filter_start_date = "";
+      this.Filter_end_date = "";
       this.Filter_warehouse = "";
       this.Get_Purchases(this.serverParams.page);
     },
@@ -876,6 +885,12 @@ export default {
       } else if (this.Filter_Payment === null) {
         this.Filter_Payment = "";
       }
+      if (this.Filter_start_date === null) {
+        this.Filter_start_date = "";
+      }
+      if (this.Filter_end_date === null) {
+        this.Filter_end_date = "";
+      }
     },
 
     //------------------------------------------------ Get All Purchases -------------------------------\\
@@ -890,8 +905,10 @@ export default {
             page +
             "&Ref=" +
             this.Filter_Ref +
-            "&date=" +
-            this.Filter_date +
+            "&start_date=" +
+            this.Filter_start_date +
+            "&end_date=" +
+            this.Filter_end_date +
             "&provider_id=" +
             this.Filter_Supplier +
             "&statut=" +

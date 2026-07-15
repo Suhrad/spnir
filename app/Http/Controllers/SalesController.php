@@ -100,6 +100,9 @@ class SalesController extends BaseController
         if ($request->filled('business_company_id')) {
             $Sales->where('business_company_id', $request->business_company_id);
         }
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $Sales->whereBetween('date', [$request->start_date, $request->end_date]);
+        }
         //Multiple Filter
         $Filtred = $helpers->filter($Sales, $columns, $param, $request)
         // Search With Multiple Param

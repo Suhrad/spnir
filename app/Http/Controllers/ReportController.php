@@ -6526,7 +6526,7 @@ class ReportController extends BaseController
         $effective_opening_balance = $client_effective_opening - $provider_effective_opening;
 
         // Fetch Transactions in range
-        $sales = Sale::with(['details.product.category', 'warehouse:id,name'])
+        $sales = Sale::with(['details.product.category', 'warehouse:id,name,shortcut'])
             ->where('client_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
@@ -6546,7 +6546,7 @@ class ReportController extends BaseController
             ->where('deleted_at', '=', null)
             ->get();
 
-        $returns = SaleReturn::with('warehouse:id,name')
+        $returns = SaleReturn::with('warehouse:id,name,shortcut')
             ->where('client_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
@@ -6565,7 +6565,7 @@ class ReportController extends BaseController
         $returns_p = collect();
 
         if ($provider_id) {
-            $purchases = Purchase::with(['details.product', 'warehouse:id,name'])
+            $purchases = Purchase::with(['details.product', 'warehouse:id,name,shortcut'])
                 ->where('provider_id', $provider_id)
                 ->whereBetween('date', [$start_date, $end_date])
                 ->where('deleted_at', '=', null)
@@ -6585,7 +6585,7 @@ class ReportController extends BaseController
                 ->where('deleted_at', '=', null)
                 ->get();
 
-            $returns_p = PurchaseReturn::with('warehouse:id,name')
+            $returns_p = PurchaseReturn::with('warehouse:id,name,shortcut')
                 ->where('provider_id', $provider_id)
                 ->whereBetween('date', [$start_date, $end_date])
                 ->where('deleted_at', '=', null)
@@ -6616,7 +6616,7 @@ class ReportController extends BaseController
                 'date' => $sale->date,
                 'book' => 'Sale',
                 'ref' => $sale->Ref,
-                'warehouse' => $sale->warehouse ? $sale->warehouse->name : '-',
+                'warehouse' => $sale->warehouse ? ($sale->warehouse->shortcut ?: $sale->warehouse->name) : '-',
                 'particulars' => $particulars,
                 'debit' => (double) $sale->GrandTotal,
                 'credit' => 0,
@@ -6642,7 +6642,7 @@ class ReportController extends BaseController
                 'date' => $return->date,
                 'book' => 'SRtn',
                 'ref' => $return->Ref,
-                'warehouse' => $return->warehouse ? $return->warehouse->name : '-',
+                'warehouse' => $return->warehouse ? ($return->warehouse->shortcut ?: $return->warehouse->name) : '-',
                 'particulars' => "SALES RETURN\nRef: " . $return->Ref,
                 'debit' => 0,
                 'credit' => (double) $return->GrandTotal,
@@ -6682,7 +6682,7 @@ class ReportController extends BaseController
                 'date' => $purchase->date,
                 'book' => 'Pur',
                 'ref' => $purchase->Ref,
-                'warehouse' => $purchase->warehouse ? $purchase->warehouse->name : '-',
+                'warehouse' => $purchase->warehouse ? ($purchase->warehouse->shortcut ?: $purchase->warehouse->name) : '-',
                 'particulars' => $particulars,
                 'debit' => 0,
                 'credit' => (double) $purchase->GrandTotal,
@@ -6708,7 +6708,7 @@ class ReportController extends BaseController
                 'date' => $return->date,
                 'book' => 'PRtn',
                 'ref' => $return->Ref,
-                'warehouse' => $return->warehouse ? $return->warehouse->name : '-',
+                'warehouse' => $return->warehouse ? ($return->warehouse->shortcut ?: $return->warehouse->name) : '-',
                 'particulars' => "PURCHASE RETURN\nRef: " . $return->Ref,
                 'debit' => (double) $return->GrandTotal,
                 'credit' => 0,
@@ -6838,7 +6838,7 @@ class ReportController extends BaseController
             ->where('deleted_at', '=', null)
             ->get();
 
-        $returns = PurchaseReturn::with('warehouse:id,name')
+        $returns = PurchaseReturn::with('warehouse:id,name,shortcut')
             ->where('provider_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
@@ -6868,7 +6868,7 @@ class ReportController extends BaseController
                 'date' => $purchase->date,
                 'book' => 'Purch',
                 'ref' => $purchase->Ref,
-                'warehouse' => $purchase->warehouse ? $purchase->warehouse->name : '-',
+                'warehouse' => $purchase->warehouse ? ($purchase->warehouse->shortcut ?: $purchase->warehouse->name) : '-',
                 'particulars' => $particulars,
                 'debit' => 0,
                 'credit' => (double) $purchase->GrandTotal,
@@ -6894,7 +6894,7 @@ class ReportController extends BaseController
                 'date' => $return->date,
                 'book' => 'PRtn',
                 'ref' => $return->Ref,
-                'warehouse' => $return->warehouse ? $return->warehouse->name : '-',
+                'warehouse' => $return->warehouse ? ($return->warehouse->shortcut ?: $return->warehouse->name) : '-',
                 'particulars' => "PURCHASE RETURN\nRef: " . $return->Ref,
                 'debit' => (double) $return->GrandTotal,
                 'credit' => 0,
