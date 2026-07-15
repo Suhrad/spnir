@@ -63,6 +63,17 @@
       <span class="ul-btn__text ml-1">Create Transfer</span>
       </router-link>
 
+      <router-link 
+        v-slot="{ href, navigate }"
+        v-if="currentUserPermissions && currentUserPermissions.includes('Reports_customers')"
+        to="/app/reports/companies_report"
+        custom
+      >
+        <a :href="href" @click="navigate" class="btn btn-outline-dark tn-sm btn-rounded mr-2">
+          <span class="ul-btn__text ml-1">Company Report</span>
+        </a>
+      </router-link>
+
 
       <!-- User avatar dropdown -->
       <div class="dropdown">
