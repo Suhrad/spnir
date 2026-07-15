@@ -1,11 +1,13 @@
 /public/hot
 
+/public/js/bundle
 /public/images/vendor
 /public/js/main.js
 /node_modules
 /public/hot
 /public/storage
 /storage/*.key
+/storage/framework/sessions
 /vendor
 .env
 .env.backup
@@ -16,23 +18,10 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
-/database/database.sqlite
-/storage/logs/*
-/public/images/products/*
-/public/images/clients/*
-/public/images/providers/*
-/public/images/settings/*
-!/public/images/products/.gitkeep
-!/public/images/clients/.gitkeep
-!/public/images/providers/.gitkeep
-!/public/images/settings/.gitkeep
 /scratch/
-/*.log
-/routes_list*.txt
-/scratch_*.txt
-/scratch_*.php
-/test*.php
-/vendor 3/
-/routes/api.php.patch
-/start.command
+.DS_Store
 /tmp-chrome-profile/
+test.php
+test2.php
+test3.php
+version.txt

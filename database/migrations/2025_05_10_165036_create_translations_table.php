@@ -24,8 +24,7 @@ return new class extends Migration
             $table->unique(['locale', 'key']); // prevent duplicates
         });
 
-        // ✅ Manually run the seeder class here
-        (new TranslationSeeder)->run();
+        // Seeder will be executed separately to avoid migration-time failures
     }
 
     /**

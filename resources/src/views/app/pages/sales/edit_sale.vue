@@ -48,10 +48,11 @@
                         :disabled="isReadOnly"
                         :class="{'is-invalid': !!errors.length}"
                         :state="errors[0] ? false : (valid ? true : null)"
+                        @input="Selected_Customer"
                         v-model="sale.client_id"
                         :reduce="label => label.value"
                         :placeholder="$t('Choose_Customer')"
-                        :options="clients.map(clients => ({label: clients.name, value: clients.id}))"
+                        :options="clientOptions"
                       />
                       <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
                     </b-form-group>
@@ -70,7 +71,7 @@
                         v-model="sale.warehouse_id"
                         :reduce="label => label.value"
                         :placeholder="$t('Choose_Warehouse')"
-                        :options="warehouses.map(warehouses => ({label: warehouses.name, value: warehouses.id}))"
+                        :options="warehouseOptions"
                       />
                       <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
                     </b-form-group>
@@ -86,7 +87,7 @@
                       @input="Selected_Transport"
                       :reduce="label => label.value"
                       :placeholder="$t('Choose_Transport')"
-                      :options="transporters.map(t => ({label: t.name, value: t.name}))"
+                      :options="transporterOptions"
                     />
                   </b-form-group>
                 </b-col>
@@ -106,24 +107,22 @@
                   <!-- Product -->
                 <b-col md="12" class="mb-5" v-if="!isReadOnly">
                   <h6>{{$t('ProductName')}}</h6>
-                 
-
-                    <div id="autocomplete" class="autocomplete">
-                      <div class="input-with-icon">
-                      <img src="/assets_setup/scan.png" alt="Scan" class="scan-icon" @click="showModal">
-                    <input 
-                     :placeholder="$t('Scan_Search_Product_by_Code_Name')"
-                       @input='e => search_input = e.target.value' 
-                      @keyup="search(search_input)"
-                      @focus="handleFocus"
-                      @blur="handleBlur"
-                      ref="product_autocomplete"
-                      class="autocomplete-input" />
-                    </div>
-                    <ul class="autocomplete-result-list" v-show="focused">
-                      <li class="autocomplete-result" v-for="product_fil in product_filter" @mousedown="SearchProduct(product_fil)">{{getResultValue(product_fil)}}</li>
-                    </ul>
-                </div>
+                  <div class="d-flex align-items-center">
+                    <v-select
+                      v-model="selectedProductId"
+                      @input="Quick_Product_Select"
+                      :reduce="label => label.value"
+                      placeholder="Quickly Choose Product..."
+                      :options="getFilteredQuickProducts(quickProductSearch)"
+                      :filterable="false"
+                      @search="query => quickProductSearch = query"
+                      @open="quickProductSearch = ''"
+                      class="flex-grow-1 mr-2"
+                    />
+                    <b-button variant="primary" @click="showModal" style="height: 43px; display: flex; align-items: center; justify-content: center;">
+                      <img src="/assets_setup/scan.png" alt="Scan" style="height: 24px; filter: invert(1);">
+                    </b-button>
+                  </div>
                 </b-col>
 
                 <!-- Order products  -->
@@ -154,7 +153,10 @@
                               :disabled="isReadOnly"
                               :reduce="label => label.value"
                               :placeholder="$t('Choose_Product')"
-                              :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p.id}))"
+                              :options="getFilteredProducts(detail.search)"
+                              :filterable="false"
+                              @search="query => $set(detail, 'search', query)"
+                              @open="$set(detail, 'search', '')"
                               @input="onGridProductChange(detail)"
                               class="grid-v-select"
                               append-to-body
@@ -386,6 +388,7 @@ export default {
       SubmitProcessing:false,
       Submit_Processing_detail:false,
       selectedProductId: null,
+      quickProductSearch: "",
       warehouses: [],
       clients: [],
       products: [],
@@ -447,7 +450,22 @@ export default {
   },
 
   computed: {
-    ...mapGetters(["currentUserPermissions","currentUser"])
+    ...mapGetters(["currentUserPermissions","currentUser"]),
+    clientOptions() {
+      return this.clients.map(c => ({ label: c.name, value: c.id }));
+    },
+    warehouseOptions() {
+      return this.warehouses.map(w => ({ label: w.name, value: w.id }));
+    },
+    productOptions() {
+      return this.products.map(p => ({ label: p.name + ' (' + p.code + ')', value: p.id }));
+    },
+    transporterOptions() {
+      return this.transporters.map(t => ({ label: t.name, value: t.name }));
+    },
+    quickProductOptions() {
+      return this.products.map(p => ({ label: p.name + ' (' + p.code + ')', value: p }));
+    }
   },
 
   methods: {
@@ -604,12 +622,14 @@ export default {
       }
       detail.quantity = parseFloat(detail.quantity);
 
+      const unitPrice = parseFloat(detail.Unit_price || 0);
+
        // If we have a subtotal and quantity > 0, back-calculate the price to keep amount same
       if (detail.subtotal > 0 && detail.quantity > 0) {
         detail.Unit_price = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
       } else {
         // Fallback: if no subtotal yet, calculate subtotal from price
-        detail.subtotal = parseFloat((detail.quantity * detail.Unit_price).toFixed(2));
+        detail.subtotal = parseFloat((detail.quantity * unitPrice).toFixed(2));
       }
 
       this.Calcul_Total();
@@ -618,8 +638,7 @@ export default {
     Manual_Amount_Update(detail) {
       detail.subtotal = parseFloat(detail.subtotal || 0);
       if (detail.quantity > 0) {
-        detail.Unit_price = parseFloat(detail.subtotal / detail.quantity).toFixed(2);
-        detail.Unit_price = parseFloat(detail.Unit_price);
+        detail.Unit_price = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
       }
       this.Calcul_Total();
     },
@@ -685,7 +704,9 @@ export default {
 
             this.makeToast("danger", "Invalid product code scanned", this.$t("Error"));
             this.search_input= '';
-            this.$refs.product_autocomplete.value = "";
+            if (this.$refs.product_autocomplete) {
+               this.$refs.product_autocomplete.value = "";
+             }
             this.product_filter = [];
           }
           // else{
@@ -783,7 +804,9 @@ export default {
         }
 
         this.search_input= '';
-        this.$refs.product_autocomplete.value = "";
+        if (this.$refs.product_autocomplete) {
+          this.$refs.product_autocomplete.value = "";
+        }
         this.product_filter = [];
     },
 
@@ -849,8 +872,10 @@ export default {
     Calcul_Total() {
       this.total = 0;
       for (var i = 0; i < this.details.length; i++) {
-        this.details[i].subtotal = parseFloat(parseFloat(this.details[i].subtotal).toFixed(2));
-        this.total = parseFloat(this.total + this.details[i].subtotal);
+        const detail = this.details[i];
+        detail.subtotal = parseFloat(parseFloat(detail.subtotal || 0).toFixed(2));
+        if (isNaN(detail.subtotal)) detail.subtotal = 0;
+        this.total = parseFloat((this.total + detail.subtotal).toFixed(2));
       }
 
       this.GrandTotal = this.total;
@@ -1004,6 +1029,22 @@ export default {
         });
     },
 
+    Selected_Customer(value) {
+      if (value) {
+        const client = this.clients.find(c => c.id === value);
+        if (client) {
+          if (client.preferred_transport) {
+            this.sale.transporter_name = client.preferred_transport;
+          } else {
+            this.sale.transporter_name = "";
+          }
+        }
+      } else {
+        this.sale.transporter_name = "";
+      }
+      this.updateNote();
+    },
+
     Selected_Transport(value) {
       if (value === null) {
         this.sale.transporter_name = "";
@@ -1015,17 +1056,32 @@ export default {
 
     updateNote() {
       let note = "";
-      
       const warehouse = this.warehouses.find(w => w.id === this.sale.warehouse_id);
+      let symbol = "NP";
       if (warehouse && warehouse.shortcut) {
-        note += warehouse.shortcut + ": ";
+        symbol = warehouse.shortcut;
       }
-      
-      let transporter = this.sale.transporter_name ? this.sale.transporter_name + " " : "";
-      let lr_val = this.sale.lr_number ? this.sale.lr_number : "";
-      note += transporter + "LR: " + lr_val;
-      
+      note += "Rate: " + symbol + ":";
       this.sale.notes = note;
+    },
+
+    getFilteredProducts(search) {
+      const q = (search || '').toLowerCase();
+      const filtered = this.productOptions.filter(p => p.label.toLowerCase().includes(q));
+      return filtered.slice(0, 50);
+    },
+
+    getFilteredQuickProducts(search) {
+      const q = (search || '').toLowerCase();
+      const filtered = this.quickProductOptions.filter(p => p.label.toLowerCase().includes(q));
+      return filtered.slice(0, 50);
+    },
+
+    Quick_Product_Select(value) {
+      if (value) {
+        this.SearchProduct(value);
+        this.selectedProductId = null;
+      }
     },
 
     //------------------------------------------ Remove Sale ------------------------------\\

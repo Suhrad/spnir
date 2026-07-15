@@ -1,0 +1,19 @@
+@@ -206,12 +206,18 @@
+     Route::get('report/stock_aging/filters','ReportController@stockAgingFilters');
+     Route::get('report/stock_transfer', 'ReportController@stockTransferReport');
+     Route::get('report/stock_adjustment', 'ReportController@stockAdjustmentReport');
++    Route::get('report/top_suppliers', 'ReportController@topSuppliersReport');
++
++    //------------------------------- payment_methods ------------------------\
++    //------------------------------------------------------------------\    
++    Route::resource('payment_methods', 'PaymentMethodController');
++
++    //------------------------------Employee------------------------------------\
++    Route::resource('employees', 'hrm\EmployeesController');
++    Route::post('employees/import/csv', 'hrm\EmployeesController@import_employees');
++    Route::post('employees/delete/by_selection', 'hrm\EmployeesController@delete_by_selection');
++    Route::get("get_employees_by_department", "hrm\EmployeesController@Get_employees_by_department");
++    Route::put("update_social_profile/{id}", "hrm\EmployeesController@update_social_profile");
++    Route::get("get_experiences_by_employee", "hrm\EmployeesController@get_experiences_by_employee");
+     Route::get("get_accounts_by_employee", "hrm\EmployeesController@get_accounts_by_employee");
+     Route::get("Get_employees_by_company", "hrm\EmployeesController@Get_employees_by_company");

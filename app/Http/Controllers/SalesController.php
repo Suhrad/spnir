@@ -1464,7 +1464,7 @@ class SalesController extends BaseController
            $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name', 'shortcut']);
        }
 
-        $clients = Client::where('deleted_at', '=', null)->get(['id', 'name', 'preferred_transport']);
+        $clients = Client::with('company:id,name')->where('deleted_at', '=', null)->get(['id', 'name', 'preferred_transport', 'business_company_id']);
         $transporters = Transporter::all(['id', 'name']);
         $accounts = Account::where('deleted_at', '=', null)->get(['id', 'account_name']);
         $payment_methods = PaymentMethod::whereNull('deleted_at')->get(['id', 'name']);
@@ -1656,7 +1656,7 @@ class SalesController extends BaseController
                 $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name', 'shortcut']);
             }
 
-          $clients = Client::where('deleted_at', '=', null)->get(['id', 'name', 'preferred_transport']);
+          $clients = Client::with('company:id,name')->where('deleted_at', '=', null)->get(['id', 'name', 'preferred_transport', 'business_company_id']);
           $transporters = Transporter::all(['id', 'name']);
           $settings = Setting::where('deleted_at', '=', null)->first();
 

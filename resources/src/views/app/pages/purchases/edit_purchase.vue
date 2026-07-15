@@ -52,13 +52,13 @@
                         v-model="purchase.supplier_id"
                         :reduce="label => label.value"
                         :placeholder="$t('Choose_Supplier')"
-                        :options="suppliers.map(suppliers => ({label: suppliers.name, value: suppliers.id}))"
+                        :options="supplierOptions"
                       />
                       <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
                     </b-form-group>
                   </validation-provider>
                 </b-col>
-
+ 
                 <!-- warehouse -->
                 <b-col lg="4" md="4" sm="12" class="mb-3">
                   <validation-provider name="warehouse" :rules="{ required: true}">
@@ -71,7 +71,7 @@
                         v-model="purchase.warehouse_id"
                         :reduce="label => label.value"
                         :placeholder="$t('Choose_Warehouse')"
-                        :options="warehouses.map(warehouses => ({label: warehouses.name, value: warehouses.id}))"
+                        :options="warehouseOptions"
                       />
                       <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
                     </b-form-group>
@@ -82,31 +82,22 @@
                 <b-col md="12" class="mb-5" v-if="!isReadOnly">
                   <h6>{{$t('ProductName')}}</h6>
                  
-                    <div class="input-with-icon mb-2">
-                       <v-select
+                    <div class="d-flex align-items-center mb-2">
+                      <v-select
                         v-model="selectedProductId"
                         @input="Quick_Product_Select"
                         :reduce="label => label.value"
                         placeholder="Quickly Choose Product..."
-                        :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p}))"
+                        :options="getFilteredQuickProducts(quickProductSearch)"
+                        :filterable="false"
+                        @search="query => quickProductSearch = query"
+                        @open="quickProductSearch = ''"
+                        class="flex-grow-1 mr-2"
                       />
+                      <b-button variant="primary" @click="showModal" style="height: 43px; display: flex; align-items: center; justify-content: center;">
+                        <img src="/assets_setup/scan.png" alt="Scan" style="height: 24px; filter: invert(1);">
+                      </b-button>
                     </div>
-                    <div id="autocomplete" class="autocomplete">
-                      <div class="input-with-icon">
-                      <img src="/assets_setup/scan.png" alt="Scan" class="scan-icon" @click="showModal">
-                    <input 
-                     :placeholder="$t('Scan_Search_Product_by_Code_Name')"
-                      @input='e => search_input = e.target.value' 
-                      @keyup="search(search_input)"
-                      @focus="handleFocus"
-                      @blur="handleBlur"
-                      ref="product_autocomplete"
-                      class="autocomplete-input" />
-                    </div>
-                    <ul class="autocomplete-result-list" v-show="focused">
-                      <li class="autocomplete-result" v-for="product_fil in product_filter" @mousedown="SearchProduct(product_fil)">{{getResultValue(product_fil)}}</li>
-                    </ul>
-                </div>
                 </b-col>
 
                 <!-- Order products  -->
@@ -137,7 +128,10 @@
                               :disabled="isReadOnly"
                               :reduce="label => label.value"
                               :placeholder="$t('Choose_Product')"
-                              :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p.id}))"
+                              :options="getFilteredProducts(detail.search)"
+                              :filterable="false"
+                              @search="query => $set(detail, 'search', query)"
+                              @open="$set(detail, 'search', '')"
                               @input="onGridProductChange(detail)"
                               class="grid-v-select"
                               append-to-body
@@ -387,6 +381,7 @@ export default {
       SubmitProcessing:false,
       Submit_Processing_detail:false,
       selectedProductId: null,
+      quickProductSearch: "",
       warehouses: [],
       suppliers: [],
       products: [],
@@ -436,7 +431,19 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(["currentUserPermissions","currentUser"])
+    ...mapGetters(["currentUserPermissions","currentUser"]),
+    supplierOptions() {
+      return this.suppliers.map(s => ({ label: s.name, value: s.id }));
+    },
+    warehouseOptions() {
+      return this.warehouses.map(w => ({ label: w.name, value: w.id }));
+    },
+    productOptions() {
+      return this.products.map(p => ({ label: p.name + ' (' + p.code + ')', value: p.id }));
+    },
+    quickProductOptions() {
+      return this.products.map(p => ({ label: p.name + ' (' + p.code + ')', value: p }));
+    }
   },
 
   methods: {
@@ -759,7 +766,9 @@ export default {
       }
 
       this.search_input= '';
-      this.$refs.product_autocomplete.value = "";
+      if (this.$refs.product_autocomplete) {
+        this.$refs.product_autocomplete.value = "";
+      }
       this.product_filter = [];
     },
 
@@ -1000,7 +1009,6 @@ export default {
       });
     },
 
-    //---------------------------------------Get Elements Purchase ------------------------------\\
     GetElements() {
       let id = this.$route.params.id;
       axios
@@ -1019,6 +1027,18 @@ export default {
             this.isLoading = false;
           }, 500);
         });
+    },
+
+    getFilteredProducts(search) {
+      const q = (search || '').toLowerCase();
+      const filtered = this.productOptions.filter(p => p.label.toLowerCase().includes(q));
+      return filtered.slice(0, 50);
+    },
+
+    getFilteredQuickProducts(search) {
+      const q = (search || '').toLowerCase();
+      const filtered = this.quickProductOptions.filter(p => p.label.toLowerCase().includes(q));
+      return filtered.slice(0, 50);
     }
   },
 

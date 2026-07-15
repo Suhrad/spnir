@@ -16,14 +16,16 @@ class TranslationSeeder extends Seeder
         $path = database_path('seeders/translations');
         $files = File::files($path);
 
-        $allTranslations = [];
+        $uniqueTranslations = [];
 
         foreach ($files as $file) {
             $locale = pathinfo($file, PATHINFO_FILENAME); // 'en', 'ar', etc.
             $translations = require $file;
 
             foreach ($translations as $key => $value) {
-                $allTranslations[] = [
+                $compoundKey = $locale . '|' . $key;
+                // Deduplicate within files and across locales by compound key
+                $uniqueTranslations[$compoundKey] = [
                     'locale'     => $locale,
                     'key'        => $key,
                     'value'      => $value,
@@ -34,13 +36,20 @@ class TranslationSeeder extends Seeder
             }
         }
 
-        foreach (array_chunk($allTranslations, 1000) as $chunk) {
-            DB::table('translations')->upsert(
-                $chunk,
-                ['locale', 'key'],
-                ['value', 'is_default', 'updated_at']
-            );
-        }
+        $allTranslations = array_values($uniqueTranslations);
+        DB::transaction(function () use ($allTranslations) {
+            foreach ($allTranslations as $row) {
+                DB::table('translations')->updateOrInsert(
+                    ['locale' => $row['locale'], 'key' => $row['key']],
+                    [
+                        'value' => $row['value'],
+                        'is_default' => $row['is_default'],
+                        'created_at' => $row['created_at'],
+                        'updated_at' => $row['updated_at'],
+                    ]
+                );
+            }
+        });
     }
 
 

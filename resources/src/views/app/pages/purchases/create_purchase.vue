@@ -4,161 +4,335 @@
     <div v-if="isLoading" class="loading_page spinner spinner-primary mr-3"></div>
 
     <validation-observer ref="create_purchase" v-if="!isLoading">
-      <b-form @submit.prevent="submitSpreadsheet">
+      <b-form @submit.prevent="Submit_Purchase">
         <b-row>
           <b-col lg="12" md="12" sm="12">
-            
-            <!-- Context Header (Date and Warehouse) -->
-            <b-card class="mb-3 bg-light">
+            <b-card>
               <b-row>
+
+                <b-modal hide-footer id="open_scan" size="md" title="Barcode Scanner">
+                  <qrcode-scanner
+                    :qrbox="250" 
+                    :fps="10" 
+                    style="width: 100%; height: calc(100vh - 56px);"
+                    @result="onScan"
+                  />
+                </b-modal>
+
                 <!-- date  -->
-                <b-col lg="6" md="6" sm="12">
-                  <b-form-group :label="$t('date')">
-                    <b-form-input type="date" v-model="purchase.date" class="header-input"></b-form-input>
-                  </b-form-group>
+                <b-col lg="4" md="4" sm="12" class="mb-3">
+                  <validation-provider
+                    name="date"
+                    :rules="{ required: true}"
+                    v-slot="validationContext"
+                  >
+                    <b-form-group :label="$t('date') + ' ' + '*'">
+                      <b-form-input
+                        :state="getValidationState(validationContext)"
+                        aria-describedby="date-feedback"
+                        type="date"
+                        v-model="purchase.date"
+                      ></b-form-input>
+                      <b-form-invalid-feedback
+                        id="OrderTax-feedback"
+                      >{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                    </b-form-group>
+                  </validation-provider>
                 </b-col>
 
+                <!-- Supplier -->
+                <b-col lg="4" md="4" sm="12" class="mb-3">
+                  <validation-provider name="Supplier" :rules="{ required: true}">
+                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Supplier') + ' ' + '*'">
+                      <v-select
+                        :class="{'is-invalid': !!errors.length}"
+                        :state="errors[0] ? false : (valid ? true : null)"
+                        v-model="purchase.supplier_id"
+                        :reduce="label => label.value"
+                        :placeholder="$t('Choose_Supplier')"
+                         :options="supplierOptions"
+                      />
+                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                    </b-form-group>
+                  </validation-provider>
+                </b-col>
+ 
                 <!-- warehouse -->
-                <b-col lg="6" md="6" sm="12">
-                  <b-form-group :label="$t('warehouse')">
+                <b-col lg="4" md="4" sm="12" class="mb-3">
+                  <validation-provider name="warehouse" :rules="{ required: true}">
+                    <b-form-group slot-scope="{ valid, errors }" :label="$t('warehouse') + ' ' + '*'">
+                      <v-select
+                        :class="{'is-invalid': !!errors.length}"
+                        :state="errors[0] ? false : (valid ? true : null)"
+                        @input="Selected_Warehouse"
+                        v-model="purchase.warehouse_id"
+                        :reduce="label => label.value"
+                        :placeholder="$t('Choose_Warehouse')"
+                        :options="warehouseOptions"
+                      />
+                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                    </b-form-group>
+                  </validation-provider>
+                </b-col>
+
+                <!-- Product -->
+                <b-col md="12" class="mb-5">
+                  <h6>{{$t('ProductName')}}</h6>
+                  <div class="d-flex align-items-center">
                     <v-select
-                      @input="Selected_Warehouse"
-                      v-model="purchase.warehouse_id"
+                      v-model="selectedProductId"
+                      @input="Quick_Product_Select"
                       :reduce="label => label.value"
-                      :placeholder="$t('Choose_Warehouse')"
-                      :options="warehouses.map(w => ({label: w.name, value: w.id}))"
+                      placeholder="Quickly Choose Product..."
+                      :options="getFilteredQuickProducts(quickProductSearch)"
+                      :filterable="false"
+                      @search="query => quickProductSearch = query"
+                      @open="quickProductSearch = ''"
+                      class="flex-grow-1 mr-2"
                     />
+                    <b-button variant="primary" @click="showModal" style="height: 43px; display: flex; align-items: center; justify-content: center;">
+                      <img src="/assets_setup/scan.png" alt="Scan" style="height: 24px; filter: invert(1);">
+                    </b-button>
+                  </div>
+                </b-col>
+
+                <!-- Order products  -->
+                <b-col md="12">
+                  <h5>{{$t('order_products')}} *</h5>
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead class="bg-gray-300">
+                        <tr>
+                          <th scope="col">#</th>
+                          <th scope="col">{{$t('ProductName')}}</th>
+                          <th scope="col" style="width: 250px;">{{$t('Qty')}}</th>
+                          <th scope="col" style="width: 250px;">{{$t('Amount')}}</th>
+                          <th scope="col" class="text-center">
+                            <i class="i-Close-Window text-25"></i>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="detail in details" :key="detail.detail_id">
+                          <td>{{detail.detail_id}}</td>
+                          <td>
+                            <v-select
+                              v-model="detail.product_id"
+                              :reduce="label => label.value"
+                              :placeholder="$t('Choose_Product')"
+                              :options="getFilteredProducts(detail.search)"
+                              :filterable="false"
+                              @search="query => $set(detail, 'search', query)"
+                              @open="$set(detail, 'search', '')"
+                              @input="onGridProductChange(detail)"
+                              class="grid-v-select"
+                              append-to-body
+                            />
+                          </td>
+                          <td>
+                            <b-form-input
+                              v-model.number="detail.quantity"
+                              @keyup="Verified_Qty(detail,detail.detail_id)"
+                              type="text"
+                              inputmode="decimal"
+                              class="form-control text-center"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
+                          </td>
+                          <td>
+                            <b-form-input
+                              v-model.number="detail.subtotal"
+                              @keyup="Manual_Amount_Update(detail)"
+                              type="text"
+                              inputmode="decimal"
+                              class="form-control text-right"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
+                          </td>
+                          <td class="text-center">
+                            <i @click="delete_Product_Detail(detail.detail_id)" class="i-Close-Window text-25 text-danger cursor-pointer"></i>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </b-col>
+
+                <div class="offset-md-9 col-md-3 mt-4">
+                  <table class="table table-striped table-sm">
+                    <tbody>
+                      <tr>
+                        <td>
+                          <span class="font-weight-bold">{{$t('Total')}}</span>
+                        </td>
+                        <td>
+                          <span class="font-weight-bold">{{currentUser.currency}} {{GrandTotal.toFixed(2)}}</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Status  -->
+                <b-col lg="4" md="4" sm="12" class="mb-3">
+                  <validation-provider name="Status" :rules="{ required: true}">
+                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Status') + ' ' + '*'">
+                      <v-select
+                        :class="{'is-invalid': !!errors.length}"
+                        :state="errors[0] ? false : (valid ? true : null)"
+                        v-model="purchase.statut"
+                        :reduce="label => label.value"
+                        :placeholder="$t('Choose_Status')"
+                        :options="
+                          [
+                            {label: 'received', value: 'received'},
+                            {label: 'pending', value: 'pending'},
+                            {label: 'ordered', value: 'ordered'}
+                          ]"
+                      ></v-select>
+                      <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                    </b-form-group>
+                  </validation-provider>
+                </b-col>
+
+                <b-col md="12">
+                  <b-form-group :label="$t('Note')">
+                    <textarea
+                      v-model="purchase.notes"
+                      rows="4"
+                      class="form-control"
+                      :placeholder="$t('Afewwords')"
+                    ></textarea>
                   </b-form-group>
+                </b-col>
+                <b-col md="12" class="mt-4 border-top pt-3 d-flex justify-content-end">
+                  <div>
+                    <b-button variant="primary" class="m-1" @click="Submit_Purchase" :disabled="SubmitProcessing">
+                      <i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}
+                    </b-button>
+                  </div>
                 </b-col>
               </b-row>
             </b-card>
-
-            <!-- Excel Grid Section -->
-            <div class="excel-container mt-4">
-              <div class="d-flex justify-content-between mb-3 align-items-center">
-                 <h3 class="mb-0 text-dark font-weight-bold">Purchase Worksheet (Grid View)</h3>
-              </div>
-
-
-
-              <div class="table-responsive worksheet-grid-wrapper">
-                <table class="table table-bordered excel-grid">
-                  <thead>
-                    <tr>
-                      <th style="width: 20%;">{{$t('Supplier')}}</th>
-                      <th style="width: 30%;">{{$t('Product')}}</th>
-                      <th style="width: 10%;">{{$t('Qty')}}</th>
-                      <th style="width: 15%;">{{$t('Amount')}}</th>
-                      <th style="width: 20%;">{{$t('Note')}}</th>
-                      <th style="width: 5%;"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(row, index) in spreadsheetRows" :key="index">
-                      <td class="p-0 align-middle">
-                        <v-select
-                          v-model="row.supplier_id"
-                          :options="suppliers.map(s => ({label: s.name, value: s.id}))"
-                          :reduce="opt => opt.value"
-                          class="grid-v-select fill-height-select"
-                          :placeholder="$t('Supplier')"
-                          append-to-body
-                          :ref="'row_supplier_' + index"
-                          @input="onGridSupplierChange(index)"
-                        />
-                      </td>
-                      <td class="p-0">
-                        <div v-for="(item, itemIndex) in row.items" :key="itemIndex" class="grid-row-item d-flex align-items-center">
-                          <v-select
-                            v-model="item.product_data"
-                            :options="products.map(p => ({label: p.name + ' (' + p.code + ')', value: p}))"
-                            :reduce="opt => opt.value"
-                            class="grid-v-select flex-grow-1"
-                            :placeholder="$t('Select Product')"
-                            append-to-body
-                            :ref="'row_product_' + index + '_' + itemIndex"
-                            @input="onGridProductChange(index, itemIndex)"
-                          />
-                          <i v-if="row.items.length > 1" @click="removeItem(index, itemIndex)" class="i-Close text-danger ml-1 mr-2 cursor-pointer" style="font-size: 1.2rem;" title="Remove this item"></i>
-                        </div>
-                      </td>
-                      <td class="p-0">
-                        <div v-for="(item, itemIndex) in row.items" :key="itemIndex" class="grid-row-item">
-                          <input 
-                            type="text" 
-                            inputmode="decimal"
-                            v-model.number="item.quantity" 
-                            class="grid-input text-center" 
-                            :ref="'row_qty_' + index + '_' + itemIndex"
-                            @keydown.enter.prevent="focusNextCell(index, itemIndex, 'amount')"
-                          />
-                        </div>
-                      </td>
-                      <td class="p-0">
-                        <div v-for="(item, itemIndex) in row.items" :key="itemIndex" class="grid-row-item">
-                          <input 
-                            type="text" 
-                            inputmode="decimal"
-                            v-model.number="item.amount" 
-                            class="grid-input text-right" 
-                            :ref="'row_amount_' + index + '_' + itemIndex"
-                            @keydown.enter.prevent="focusNextCell(index, itemIndex, 'note')"
-                          />
-                        </div>
-                      </td>
-                      <td class="p-0 align-middle">
-                        <input 
-                          type="text" 
-                          v-model="row.note" 
-                          class="grid-input fill-height-input" 
-                          placeholder="Note..." 
-                          :ref="'row_note_' + index"
-                          @keydown.enter.prevent="moveToNextRow(index)"
-                        />
-                      </td>
-                      <td class="p-0 text-center align-middle">
-                        <div class="d-flex justify-content-center align-items-center fill-height-input" style="min-height: 60px;">
-                          <i @click="addItem(index)" class="i-Add text-success cursor-pointer mr-3" style="font-size: 1.5rem; font-weight: bold;" title="Add product to this bill"></i>
-                          <i @click="clearRow(index)" class="i-Close-Window text-danger cursor-pointer" style="font-size: 1.5rem;" title="Delete this bill"></i>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colspan="6" class="p-3 bg-light text-left">
-                        <b-button variant="primary" size="md" @click="addNewRow" class="shadow-sm font-weight-bold">
-                          <i class="i-Add"></i> Add New Row
-                        </b-button>
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              <!-- Final Action Button -->
-              <div class="mt-4 text-right">
-                <b-button 
-                  variant="success" 
-                  size="lg" 
-                  class="px-5 font-weight-bold"
-                  style="font-size: 1.4rem;"
-                  :disabled="is_bulk_processing" 
-                  @click="submitSpreadsheet"
-                >
-                  <i class="i-Yes mr-2"></i> SAVE ALL PURCHASES
-                </b-button>
-              </div>
-              <div v-if="is_bulk_processing" class="spinner lg spinner-primary mt-3 text-center"></div>
-            </div>
-
           </b-col>
         </b-row>
       </b-form>
     </validation-observer>
-    
-    <!-- Massive spacer for scrolling -->
-    <div style="height: 400px;"></div>
+
+    <!-- Modal Update Detail Product -->
+    <validation-observer ref="Update_Detail_purchase">
+      <b-modal hide-footer size="lg" id="form_Update_Detail" :title="detail.name">
+        <b-form @submit.prevent="submit_Update_Detail">
+          <b-row>
+            <!-- Tax Method -->
+            <b-col lg="6" md="6" sm="12">
+              <validation-provider name="Tax Method" :rules="{ required: true}">
+                <b-form-group slot-scope="{ valid, errors }" :label="$t('TaxMethod') + ' ' + '*'">
+                  <v-select
+                    :class="{'is-invalid': !!errors.length}"
+                    :state="errors[0] ? false : (valid ? true : null)"
+                    v-model="detail.tax_method"
+                    :reduce="label => label.value"
+                    :placeholder="$t('Choose_Method')"
+                    :options="
+                      [
+                        {label: 'Exclusive', value: '1'},
+                        {label: 'Inclusive', value: '2'}
+                      ]"
+                  ></v-select>
+                  <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Tax Rate -->
+            <b-col lg="6" md="6" sm="12">
+              <validation-provider
+                name="Order Tax"
+                :rules="{ required: true , regex: /^\d*\.?\d*$/}"
+                v-slot="validationContext"
+              >
+                <b-form-group :label="$t('OrderTax') + ' ' + '*'">
+                  <b-input-group append="%">
+                    <b-form-input
+                      label="Order Tax"
+                      v-model.number="detail.tax_percent"
+                      :state="getValidationState(validationContext)"
+                      aria-describedby="OrderTax-feedback"
+                    ></b-form-input>
+                  </b-input-group>
+                  <b-form-invalid-feedback id="OrderTax-feedback">{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Discount Method -->
+            <b-col lg="6" md="6" sm="12">
+              <validation-provider name="Discount Method" :rules="{ required: true}">
+                <b-form-group slot-scope="{ valid, errors }" :label="$t('Discount_Method') + ' ' + '*'">
+                  <v-select
+                    v-model="detail.discount_Method"
+                    :reduce="label => label.value"
+                    :placeholder="$t('Choose_Method')"
+                    :class="{'is-invalid': !!errors.length}"
+                    :state="errors[0] ? false : (valid ? true : null)"
+                    :options="
+                      [
+                        {label: 'Percent %', value: '1'},
+                        {label: 'Fixed', value: '2'}
+                      ]"
+                  ></v-select>
+                  <b-form-invalid-feedback>{{ errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Discount Rate -->
+            <b-col lg="6" md="6" sm="12">
+              <validation-provider
+                name="Discount Rate"
+                :rules="{ required: true , regex: /^\d*\.?\d*$/}"
+                v-slot="validationContext"
+              >
+                <b-form-group :label="$t('Discount') + ' ' + '*'">
+                  <b-form-input
+                    label="Discount"
+                    v-model.number="detail.discount"
+                    :state="getValidationState(validationContext)"
+                    aria-describedby="Discount-feedback"
+                  ></b-form-input>
+                  <b-form-invalid-feedback id="Discount-feedback">{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Imei or serial numbers -->
+            <b-col lg="12" md="12" sm="12" v-show="detail.is_imei">
+              <b-form-group :label="$t('Add_product_IMEI_Serial_number')">
+                <b-form-input
+                  label="Add_product_IMEI_Serial_number"
+                  v-model="detail.imei_number"
+                  :placeholder="$t('Add_product_IMEI_Serial_number')"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
+            <b-col md="12">
+              <b-form-group>
+                <b-button
+                  variant="primary"
+                  type="submit"
+                  :disabled="Submit_Processing_detail"
+                ><i class="i-Yes me-2 font-weight-bold"></i> {{$t('submit')}}</b-button>
+                <div v-once class="typo__p" v-if="Submit_Processing_detail">
+                  <div class="spinner sm spinner-primary mt-3"></div>
+                </div>
+              </b-form-group>
+            </b-col>
+          </b-row>
+        </b-form>
+      </b-modal>
+    </validation-observer>
   </div>
 </template>
 
@@ -168,306 +342,129 @@ import NProgress from "nprogress";
 
 export default {
   metaInfo: {
-    title: "Create Bulk Purchases"
+    title: "Create Purchase"
   },
   data() {
     return {
+      focused: false,
+      timer: null,
+      search_input: '',
+      product_filter: [],
       isLoading: true,
-      is_bulk_processing: false,
+      SubmitProcessing: false,
+      Submit_Processing_detail: false,
+      selectedProductId: null,
+      quickProductSearch: "",
       warehouses: [],
       suppliers: [],
       products: [],
+      details: [],
+      detail: {},
+      purchases: [],
       purchase: {
+        id: "",
+        statut: "received",
         date: new Date().toISOString().slice(0, 10),
-        warehouse_id: "",
         notes: "",
+        supplier_id: "",
+        warehouse_id: "",
         tax_rate: 0,
-        discount: 0,
+        TaxNet: 0,
         shipping: 0,
-        transporter_name: "",
-        lr_number: ""
+        discount: 0
       },
-      spreadsheetRows: [{
-        supplier_id: null,
-        note: '',
-        items: [{
-          product_data: null,
-          product_id: null,
-          variant_id: null,
-          quantity: null,
-          amount: null,
-          purchase_unit_id: null,
-          tax_method: null,
-          tax_percent: null
-        }]
-      }]
+      total: 0,
+      GrandTotal: 0,
+      product: {
+        id: "",
+        code: "",
+        stock: "",
+        quantity: 1,
+        discount: "",
+        DiscountNet: "",
+        discount_Method: "",
+        name: "",
+        no_unit: "",
+        unitPurchase: "",
+        purchase_unit_id: "",
+        Net_cost: "",
+        Total_cost: "",
+        Unit_cost: "",
+        subtotal: "",
+        product_id: "",
+        detail_id: "",
+        taxe: "",
+        tax_percent: "",
+        tax_method: "",
+        product_variant_id: "",
+        del: "",
+        is_imei: "",
+        imei_number: ""
+      }
     };
   },
   computed: {
-    ...mapGetters(["currentUserPermissions", "currentUser"])
+    ...mapGetters(["currentUserPermissions", "currentUser"]),
+    supplierOptions() {
+      return this.suppliers.map(s => ({ label: s.name, value: s.id }));
+    },
+    warehouseOptions() {
+      return this.warehouses.map(w => ({ label: w.name, value: w.id }));
+    },
+    productOptions() {
+      return this.products.map(p => ({ label: p.name + ' (' + p.code + ')', value: p.id }));
+    },
+    quickProductOptions() {
+      return this.products.map(p => ({ label: p.name + ' (' + p.code + ')', value: p }));
+    }
   },
 
   methods: {
-    // Initialize Spreadsheet Rows
-    initSpreadsheet() {
-      // Already initialized in data() with 1 row
+    showModal() {
+      this.$bvModal.show('open_scan');
     },
 
-    addNewRow() {
-      this.spreadsheetRows.push({
-        supplier_id: null,
-        note: this.generateAutoNote(),
-        items: [{
-          product_data: null,
-          product_id: null,
-          variant_id: null,
-          quantity: null,
-          amount: null,
-          purchase_unit_id: null,
-          tax_method: null,
-          tax_percent: null
-        }]
-      });
-      this.$nextTick(() => {
-        const nextIndex = this.spreadsheetRows.length - 1;
-        if (this.$refs['row_supplier_' + nextIndex]) {
-           this.$refs['row_supplier_' + nextIndex][0].$el.querySelector('input').focus();
-        }
-      });
+    onScan(decodedText, decodedResult) {
+      const code = decodedText;
+      this.search_input = code;
+      this.search();
+      this.$bvModal.hide('open_scan');
     },
 
-    addItem(rowIndex) {
-      this.spreadsheetRows[rowIndex].items.push({
-        product_data: null,
-        product_id: null,
-        variant_id: null,
-        quantity: null,
-        amount: null,
-        purchase_unit_id: null,
-        tax_method: null,
-        tax_percent: null
-      });
-      this.$nextTick(() => {
-        const nextItemIndex = this.spreadsheetRows[rowIndex].items.length - 1;
-        const refName = 'row_product_' + rowIndex + '_' + nextItemIndex;
-        if (this.$refs[refName] && this.$refs[refName][0]) {
-          this.$refs[refName][0].$el.querySelector('input').focus();
-        }
-      });
+    handleFocus() {
+      this.focused = true;
     },
 
-    removeItem(rowIndex, itemIndex) {
-      if (this.spreadsheetRows[rowIndex].items.length > 1) {
-        this.spreadsheetRows[rowIndex].items.splice(itemIndex, 1);
-      }
+    handleBlur() {
+      this.focused = false;
     },
 
-    generateAutoNote() {
-      let note = "";
-      
-      // Warehouse specific prefix first
-      const warehouse = this.warehouses.find(w => w.id === this.purchase.warehouse_id);
-      if (warehouse && warehouse.shortcut) {
-        note += warehouse.shortcut + ": ";
-      }
-      
-      // Transport and LR
-      if (this.purchase.transporter_name) note += this.purchase.transporter_name + " ";
-      note += "LR: " + (this.purchase.lr_number ? this.purchase.lr_number : "") + " ";
-      
-      return note.trim();
-    },
-
-    onAdvancedChange() {
-      // Update all row notes when Transport or LR change
-      this.spreadsheetRows.forEach(row => {
-        if (!row.note || row.note === "" || row.note.includes('LR:')) {
-           row.note = this.generateAutoNote();
-        }
-      });
-    },
-
-    onGridSupplierChange(index) {
-      this.$nextTick(() => {
-        const refName = 'row_product_' + index + '_0';
-        if (this.$refs[refName] && this.$refs[refName][0]) {
-          this.$refs[refName][0].$el.querySelector('input').focus();
-        }
-      });
-    },
-
-    onGridProductChange(rowIndex, itemIndex) {
-      const row = this.spreadsheetRows[rowIndex];
-      const item = row.items[itemIndex];
-      if (item.product_data) {
-        item.product_id = item.product_data.id;
-        item.variant_id = item.product_data.product_variant_id || null;
-        item.amount = null; // Blank by default, let person write directly
-        
-        if (!row.note || row.note === "" || row.note.includes('LR:')) {
-          row.note = this.generateAutoNote();
-        }
-
-        axios.get("/show_product_data/" + item.product_id + "/" + (item.variant_id || null)).then(response => {
-          item.purchase_unit_id = response.data.purchase_unit_id;
-          item.tax_method = response.data.tax_method;
-          item.tax_percent = response.data.tax_percent;
-        });
-
-        this.$nextTick(() => {
-          const refName = 'row_qty_' + rowIndex + '_' + itemIndex;
-          if (this.$refs[refName] && this.$refs[refName][0]) {
-            this.$refs[refName][0].focus();
-          }
-        });
-      }
-    },
-
-    focusNextCell(index, itemIndex, type) {
-      this.$nextTick(() => {
-        if (type === 'note') {
-          const refName = 'row_note_' + index;
-          if (this.$refs[refName]) {
-             if (this.$refs[refName][0]) {
-                this.$refs[refName][0].focus();
-             } else {
-                this.$refs[refName].focus();
-             }
-          }
+    Submit_Purchase() {
+      this.$refs.create_purchase.validate().then(success => {
+        if (!success) {
+          this.makeToast(
+            "danger",
+            this.$t("Please_fill_the_form_correctly"),
+            this.$t("Failed")
+          );
         } else {
-          const refName = 'row_' + type + '_' + index + '_' + itemIndex;
-          if (this.$refs[refName] && this.$refs[refName][0]) {
-            this.$refs[refName][0].focus();
-          }
+          this.Create_Purchase();
         }
       });
     },
 
-    moveToNextRow(index) {
-      if (index === this.spreadsheetRows.length - 1) {
-        this.addNewRow();
-      } else {
-        this.$nextTick(() => {
-          const nextIndex = index + 1;
-          const refName = 'row_product_' + nextIndex + '_0';
-          if (this.$refs[refName] && this.$refs[refName][0]) {
-             this.$refs[refName][0].$el.querySelector('input').focus();
-          }
-        });
-      }
-    },
-
-    clearRow(index) {
-      if (this.spreadsheetRows.length > 1) {
-        this.spreadsheetRows.splice(index, 1);
-      } else {
-        this.$set(this.spreadsheetRows, 0, {
-          supplier_id: null,
-          note: this.generateAutoNote(),
-          items: [{
-            product_data: null,
-            product_id: null,
-            variant_id: null,
-            quantity: null,
-            amount: null,
-            purchase_unit_id: null,
-            tax_method: null,
-            tax_percent: null
-          }]
-        });
-      }
-    },
-
-    submitSpreadsheet() {
-      const validRows = this.spreadsheetRows.filter(row => row.supplier_id && row.items.some(item => item.product_id));
-      
-      if (validRows.length === 0) {
-        this.makeToast("warning", "Please fill at least one row", "Warning");
-        return;
-      }
-
-      if (!this.purchase.warehouse_id) {
-        this.makeToast("warning", "Please select a Warehouse first", "Warning");
-        return;
-      }
-
-      this.is_bulk_processing = true;
-      NProgress.start();
-
-      const purchasesData = validRows.map(row => {
-        const validItems = row.items.filter(item => item.product_id);
-        const grandTotal = validItems.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-        
-        const details = validItems.map(item => {
-          return {
-            product_id: item.product_id,
-            product_variant_id: item.variant_id,
-            quantity: parseFloat(item.quantity || 0),
-            Unit_cost: item.quantity > 0 ? parseFloat((parseFloat(item.amount || 0) / parseFloat(item.quantity)).toFixed(2)) : 0,
-            subtotal: parseFloat(parseFloat(item.amount || 0).toFixed(2)),
-            discount: 0,
-            tax_percent: item.tax_percent || 0,
-            tax_method: item.tax_method || 1,
-            purchase_unit_id: item.purchase_unit_id,
-            imei_number: ""
-          };
-        });
-
-        return {
-          date: this.purchase.date,
-          supplier_id: row.supplier_id,
-          warehouse_id: this.purchase.warehouse_id,
-          statut: "received",
-          notes: row.note,
-          tax_rate: this.purchase.tax_rate || 0,
-          TaxNet: 0,
-          discount: this.purchase.discount || 0,
-          shipping: this.purchase.shipping || 0,
-          GrandTotal: parseFloat(grandTotal.toFixed(2)),
-          details: details
-        };
-      });
-
-      axios.post("purchases/bulk", {
-        purchases: purchasesData
-      })
-      .then(response => {
-        NProgress.done();
-        this.makeToast("success", "All purchases saved successfully", "Success");
-        this.$router.push({ name: "index_purchases" });
-      })
-      .catch(error => {
-        NProgress.done();
-        this.is_bulk_processing = false;
-        this.makeToast("danger", error.response?.data?.message || "Failed to save purchases", "Error");
-      });
-    },
-
-    Selected_Warehouse(value) {
-      this.Get_Products_By_Warehouse(value);
-      this.spreadsheetRows.forEach(row => {
-        if (!row.note || row.note === "" || row.note.includes('LR:')) {
-           row.note = this.generateAutoNote();
+    submit_Update_Detail() {
+      this.$refs.Update_Detail_purchase.validate().then(success => {
+        if (!success) {
+          return;
+        } else {
+          this.Update_Detail();
         }
       });
     },
 
-    Get_Products_By_Warehouse(id) {
-      NProgress.start();
-      axios.get("get_Products_by_warehouse/" + id + "?stock=" + 0 + "&product_service=" + 0)
-        .then(response => {
-          this.products = response.data;
-          NProgress.done();
-        });
-    },
-
-    GetElements() {
-      axios.get("purchases/create").then(response => {
-        this.suppliers = response.data.suppliers;
-        this.warehouses = response.data.warehouses;
-        this.isLoading = false;
-        this.initSpreadsheet();
-      });
+    getValidationState({ dirty, validated, valid = null }) {
+      return dirty || validated ? valid : null;
     },
 
     makeToast(variant, msg, title) {
@@ -476,6 +473,371 @@ export default {
         variant: variant,
         solid: true
       });
+    },
+
+    Modal_Updat_Detail(detail) {
+      NProgress.start();
+      NProgress.set(0.1);
+      this.detail = {};
+      this.detail.name = detail.name;
+      this.detail.detail_id = detail.detail_id;
+      this.detail.Unit_cost = detail.Unit_cost;
+      this.detail.tax_method = detail.tax_method;
+      this.detail.discount_Method = detail.discount_Method;
+      this.detail.discount = detail.discount;
+      this.detail.quantity = detail.quantity;
+      this.detail.tax_percent = detail.tax_percent;
+      this.detail.is_imei = detail.is_imei;
+      this.detail.imei_number = detail.imei_number;
+
+      setTimeout(() => {
+        NProgress.done();
+        this.$bvModal.show("form_Update_Detail");
+      }, 1000);
+    },
+
+    Update_Detail() {
+      NProgress.start();
+      NProgress.set(0.1);
+      this.Submit_Processing_detail = true;
+      for (var i = 0; i < this.details.length; i++) {
+        if (this.details[i].detail_id === this.detail.detail_id) {
+          this.details[i].tax_percent = this.detail.tax_percent;
+          this.details[i].Unit_cost = this.detail.Unit_cost;
+          this.details[i].quantity = this.detail.quantity;
+          this.details[i].tax_method = this.detail.tax_method;
+          this.details[i].discount_Method = this.detail.discount_Method;
+          this.details[i].discount = this.detail.discount;
+          this.details[i].imei_number = this.detail.imei_number;
+
+          if (this.details[i].discount_Method == "2") {
+            this.details[i].DiscountNet = this.detail.discount;
+          } else {
+            this.details[i].DiscountNet = parseFloat(
+              (this.detail.Unit_cost * this.details[i].discount) / 100
+            );
+          }
+
+          if (this.details[i].tax_method == "1") {
+            this.details[i].Net_cost = parseFloat(
+              this.detail.Unit_cost - this.details[i].DiscountNet
+            );
+            this.details[i].taxe = parseFloat(
+              (this.detail.tax_percent *
+                (this.detail.Unit_cost - this.details[i].DiscountNet)) /
+                100
+            );
+          } else {
+            this.details[i].taxe = parseFloat(
+              (this.detail.Unit_cost - this.details[i].DiscountNet) *
+                (this.detail.tax_percent / 100)
+            );
+            this.details[i].Net_cost = parseFloat(
+              this.detail.Unit_cost -
+                this.details[i].taxe -
+                this.details[i].DiscountNet
+            );
+          }
+          this.$forceUpdate();
+        }
+      }
+      this.Calcul_Total();
+
+      setTimeout(() => {
+        NProgress.done();
+        this.Submit_Processing_detail = false;
+        this.$bvModal.hide("form_Update_Detail");
+      }, 1000);
+    },
+
+    Verified_Qty(detail, id) {
+      if (isNaN(detail.quantity) || detail.quantity === "") {
+        detail.quantity = 0;
+      }
+      detail.quantity = parseFloat(detail.quantity);
+      if (detail.subtotal > 0 && detail.quantity > 0) {
+        detail.Unit_cost = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
+      } else {
+        detail.subtotal = parseFloat((detail.quantity * detail.Unit_cost).toFixed(2));
+      }
+      this.Calcul_Total();
+    },
+
+    Manual_Amount_Update(detail) {
+      detail.subtotal = parseFloat(detail.subtotal || 0);
+      if (detail.quantity > 0) {
+        detail.Unit_cost = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
+      }
+      this.Calcul_Total();
+    },
+
+    Quick_Product_Select(product) {
+      if (product) {
+        this.SearchProduct(product);
+        this.selectedProductId = null;
+      }
+    },
+
+    onGridProductChange(detail) {
+      const product = this.products.find(p => p.id === detail.product_id);
+      if (product) {
+        detail.name = product.name;
+        detail.code = product.code;
+        detail.Unit_cost = product.Net_cost;
+        detail.tax_method = product.tax_method;
+        detail.tax_percent = product.tax_percent;
+        detail.is_imei = product.is_imei;
+        
+        axios.get("/show_product_data/" + product.id + "/" + (product.product_variant_id || "null")).then(response => {
+          detail.Unit_cost = response.data.Unit_cost;
+          detail.tax_percent = response.data.tax_percent;
+          detail.tax_method = response.data.tax_method;
+          detail.purchase_unit_id = response.data.purchase_unit_id;
+          this.Verified_Qty(detail, detail.detail_id);
+        });
+      }
+    },
+
+    search() {
+      if (this.timer) {
+        clearTimeout(this.timer);
+        this.timer = null;
+      }
+      if (this.search_input.length < 2) {
+        return (this.product_filter = []);
+      }
+      if (this.purchase.warehouse_id != "" && this.purchase.warehouse_id != null) {
+        this.timer = setTimeout(() => {
+          const product_filter = this.products.filter(
+            product => product.code === this.search_input || product.barcode.includes(this.search_input)
+          );
+          if (product_filter.length === 1) {
+            this.SearchProduct(product_filter[0]);
+          } else {
+            this.product_filter = this.products.filter(product => {
+              return (
+                product.name.toLowerCase().includes(this.search_input.toLowerCase()) ||
+                product.code.toLowerCase().includes(this.search_input.toLowerCase()) ||
+                product.barcode.toLowerCase().includes(this.search_input.toLowerCase())
+              );
+            });
+            if (this.product_filter.length <= 0) {
+              this.makeToast("warning", "Product Not Found", "Warning");
+            }
+          }
+        }, 800);
+      } else {
+        this.makeToast(
+          "warning",
+          this.$t("SelectWarehouse"),
+          this.$t("Warning")
+        );
+      }
+    },
+
+    getResultValue(result) {
+      return result.code + " " + "(" + result.name + ")";
+    },
+
+    SearchProduct(result) {
+      this.product = {};
+      if (
+        this.details.length > 0 &&
+        this.details.some(detail => detail.code === result.code)
+      ) {
+        this.makeToast("warning", this.$t("AlreadyAdd"), this.$t("Warning"));
+      } else {
+        this.product.code = result.code;
+        this.product.quantity = 1;
+        this.product.no_unit = 1;
+        this.product.stock = result.qte_purchase;
+        this.product.product_variant_id = result.product_variant_id;
+        this.Get_Product_Details(result.id, result.product_variant_id);
+      }
+
+      this.search_input = '';
+      if (this.$refs.product_autocomplete) {
+        this.$refs.product_autocomplete.value = "";
+      }
+      this.product_filter = [];
+    },
+
+    Selected_Warehouse(value) {
+      this.search_input = '';
+      this.product_filter = [];
+      this.Get_Products_By_Warehouse(value);
+    },
+
+    Get_Products_By_Warehouse(id) {
+      NProgress.start();
+      NProgress.set(0.1);
+      axios
+        .get("get_Products_by_warehouse/" + id + "?stock=" + 0 + "&product_service=" + 0)
+        .then(response => {
+          this.products = response.data;
+          NProgress.done();
+        })
+        .catch(error => {
+          NProgress.done();
+        });
+    },
+
+    add_product() {
+      if (this.details.length > 0) {
+        this.Last_Detail_id();
+      } else if (this.details.length === 0) {
+        this.product.detail_id = 1;
+      }
+      this.details.push(this.product);
+
+      if (this.product.is_imei) {
+        this.Modal_Updat_Detail(this.product);
+      }
+    },
+
+    formatNumber(number, dec) {
+      const value = (typeof number === "string" ? number : number.toString()).split(".");
+      if (dec <= 0) return value[0];
+      let formated = value[1] || "";
+      if (formated.length > dec) return `${value[0]}.${formated.substr(0, dec)}`;
+      while (formated.length < dec) formated += "0";
+      return `${value[0]}.${formated}`;
+    },
+
+    Calcul_Total() {
+      this.total = 0;
+      for (var i = 0; i < this.details.length; i++) {
+        const detail = this.details[i];
+        detail.subtotal = parseFloat(parseFloat(detail.subtotal || 0).toFixed(2));
+        this.total = parseFloat((this.total + detail.subtotal).toFixed(2));
+      }
+      this.GrandTotal = parseFloat(this.total.toFixed(2));
+    },
+
+    delete_Product_Detail(id) {
+      for (var i = 0; i < this.details.length; i++) {
+        if (id === this.details[i].detail_id) {
+          this.details.splice(i, 1);
+          this.Calcul_Total();
+        }
+      }
+    },
+
+    verifiedForm() {
+      if (this.details.length <= 0) {
+        this.makeToast(
+          "warning",
+          this.$t("AddProductToList"),
+          this.$t("Warning")
+        );
+        return false;
+      } else {
+        var count = 0;
+        for (var i = 0; i < this.details.length; i++) {
+          if (this.details[i].quantity == "" || this.details[i].quantity === 0) {
+            count += 1;
+          }
+        }
+        if (count > 0) {
+          this.makeToast("warning", this.$t("AddQuantity"), this.$t("Warning"));
+          return false;
+        } else {
+          return true;
+        }
+      }
+    },
+
+    Create_Purchase() {
+      if (this.verifiedForm()) {
+        this.SubmitProcessing = true;
+        NProgress.start();
+        NProgress.set(0.1);
+        axios
+          .post("purchases", {
+            date: this.purchase.date,
+            supplier_id: this.purchase.supplier_id,
+            warehouse_id: this.purchase.warehouse_id,
+            statut: this.purchase.statut,
+            notes: this.purchase.notes,
+            tax_rate: this.purchase.tax_rate ? this.purchase.tax_rate : 0,
+            TaxNet: this.purchase.TaxNet ? this.purchase.TaxNet : 0,
+            discount: this.purchase.discount ? this.purchase.discount : 0,
+            shipping: this.purchase.shipping ? this.purchase.shipping : 0,
+            GrandTotal: this.GrandTotal,
+            details: this.details
+          })
+          .then(response => {
+            NProgress.done();
+            this.makeToast(
+              "success",
+              this.$t("Successfully_Created"),
+              this.$t("Success")
+            );
+            this.SubmitProcessing = false;
+            this.$router.push({ name: "index_purchases" });
+          })
+          .catch(error => {
+            NProgress.done();
+            this.makeToast("danger", this.$t("InvalidData"), this.$t("Failed"));
+            this.SubmitProcessing = false;
+          });
+      }
+    },
+
+    Last_Detail_id() {
+      this.product.detail_id = 0;
+      var len = this.details.length;
+      this.product.detail_id = this.details[len - 1].detail_id + 1;
+    },
+
+    Get_Product_Details(product_id, variant_id) {
+      axios.get("/show_product_data/" + product_id + "/" + variant_id).then(response => {
+        this.product.del = 0;
+        this.product.id = 0;
+        this.product.discount = response.data.discount;
+        this.product.DiscountNet = response.data.DiscountNet;
+        this.product.discount_Method = response.data.discount_method;
+        this.product.product_id = response.data.id;
+        this.product.name = response.data.name;
+        this.product.Net_cost = response.data.Net_cost;
+        this.product.Unit_cost = response.data.Unit_cost;
+        this.product.taxe = response.data.tax_cost;
+        this.product.tax_method = response.data.tax_method;
+        this.product.tax_percent = response.data.tax_percent;
+        this.product.unitPurchase = response.data.unitPurchase;
+        this.product.purchase_unit_id = response.data.purchase_unit_id;
+        this.product.is_imei = response.data.is_imei;
+        this.product.imei_number = '';
+        this.add_product();
+        this.Calcul_Total();
+      });
+    },
+
+    GetElements() {
+      axios
+        .get("purchases/create")
+        .then(response => {
+          this.suppliers = response.data.suppliers;
+          this.warehouses = response.data.warehouses;
+          this.isLoading = false;
+        })
+        .catch(response => {
+          setTimeout(() => {
+            this.isLoading = false;
+          }, 500);
+        });
+    },
+
+    getFilteredProducts(search) {
+      const q = (search || '').toLowerCase();
+      const filtered = this.productOptions.filter(p => p.label.toLowerCase().includes(q));
+      return filtered.slice(0, 50);
+    },
+
+    getFilteredQuickProducts(search) {
+      const q = (search || '').toLowerCase();
+      const filtered = this.quickProductOptions.filter(p => p.label.toLowerCase().includes(q));
+      return filtered.slice(0, 50);
     }
   },
 
@@ -486,42 +848,12 @@ export default {
 </script>
 
 <style scoped>
-  .excel-container {
-    padding: 20px;
-    padding-bottom: 400px; /* Massive space at bottom for scrolling */
-    background: #fff;
+  .main-content, .main-content label, .main-content input, .main-content .v-select, .main-content .table, .main-content .badge {
+    font-size: 1.3rem !important;
   }
-  .excel-grid {
-    border: 1px solid #ddd;
-    border-collapse: collapse;
-    width: 100%;
-  }
-  .excel-grid th {
-    background: #f4f4f4;
-    padding: 10px;
-    border: 1px solid #ddd;
-    font-size: 1rem;
-    font-weight: 600;
-  }
-  .excel-grid td {
-    padding: 0;
-    border: 1px solid #ddd;
-    min-height: 60px;
-    vertical-align: middle;
-  }
-  .grid-input {
-    width: 100%;
-    height: 60px;
-    border: none;
-    padding: 10px;
-    font-size: 1.3rem;
-    outline: none;
-    background: transparent;
-    line-height: 1.5;
-  }
-  .grid-input:focus {
-    background: #fff;
-    box-shadow: inset 0 0 0 2px #716aca;
+  .main-content .form-control {
+    height: calc(1.5em + 1.1rem + 2px) !important;
+    font-size: 1.3rem !important;
   }
   .grid-v-select >>> .vs__dropdown-toggle {
     border: none !important;
@@ -532,58 +864,21 @@ export default {
     display: flex;
     align-items: center;
   }
-  .grid-v-select >>> .vs__dropdown-menu {
-    min-width: 350px !important;
-    font-size: 1.2rem !important;
-  }
-  .grid-v-select >>> .vs__selected {
-    font-size: 1.3rem !important;
-    white-space: normal;
-  }
-  /* Top level warehouse and date text size */
-  .main-content >>> .v-select, .main-content >>> input, .main-content >>> label {
-    font-size: 1.3rem !important;
-  }
-  .main-content >>> .vs__selected {
-    font-size: 1.3rem !important;
-    white-space: normal;
-  }
   .grid-v-select.vs--open >>> .vs__dropdown-toggle {
     background: #fff !important;
     box-shadow: inset 0 0 0 2px #716aca;
   }
-  .worksheet-grid-wrapper {
+</style>
+
+<style>
+  .input-with-icon {
+    display: flex;
+    align-items: center;
+  }
+  .scan-icon {
+    width: 50px;
+    height: 50px;
+    margin-right: 8px;
     cursor: pointer;
-  }
-  .grid-row-item {
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid #ddd;
-    height: 60px;
-  }
-  .grid-row-item:last-child {
-    border-bottom: none;
-  }
-  .fill-height-input {
-    height: 100%;
-    min-height: 60px;
-  }
-  .fill-height-select >>> .vs__dropdown-toggle {
-    height: 100%;
-    min-height: 60px;
-    display: flex;
-    align-items: center;
-  }
-
-  /* Hide arrows in Chrome, Safari, Edge, Opera */
-  input::-webkit-outer-spin-button,
-  input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  /* Hide arrows in Firefox */
-  input[type=number] {
-    -moz-appearance: textfield;
   }
 </style>
