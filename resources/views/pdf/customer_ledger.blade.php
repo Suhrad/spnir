@@ -76,18 +76,20 @@
         <table class="ledger-table">
             <thead>
                 <tr>
-                    <th width="80">Date</th>
-                    <th width="50">Book</th>
+                    <th width="70">Date</th>
+                    <th width="40">Book</th>
+                    <th width="110">Warehouse</th>
                     <th>Particulars</th>
-                    <th width="80">Debit</th>
-                    <th width="80">Credit</th>
-                    <th width="100">Balance</th>
+                    <th width="70">Debit</th>
+                    <th width="70">Credit</th>
+                    <th width="95">Balance</th>
                 </tr>
             </thead>
             <tbody>
                 <!-- OPENING BALANCE ROW -->
                 <tr>
                     <td class="text-center">{{ Carbon\Carbon::parse($period['start'])->format('d-m-y') }}</td>
+                    <td class="text-center">-</td>
                     <td class="text-center">-</td>
                     <td class="font-bold">Opening Balance</td>
                     <td class="text-right"></td>
@@ -110,6 +112,7 @@
                     <tr>
                         <td class="text-center">{{ Carbon\Carbon::parse($row['date'])->format('d-m-y') }}</td>
                         <td class="text-center">{{ $row['book'] }}</td>
+                        <td class="text-center">{{ $row['warehouse'] }}</td>
                         <td class="particulars-cell">{{ $row['particulars'] }}</td>
                         <td class="text-right">{{ $row['debit'] > 0 ? number_format($row['debit'], 2) : '' }}</td>
                         <td class="text-right">{{ $row['credit'] > 0 ? number_format($row['credit'], 2) : '' }}</td>
@@ -121,13 +124,13 @@
             </tbody>
             <tfoot>
                 <tr class="bg-grey">
-                    <td colspan="3" class="text-right font-bold">Total .....</td>
+                    <td colspan="4" class="text-right font-bold">Total .....</td>
                     <td class="text-right font-bold">{{ number_format($total_debit, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($total_credit, 2) }}</td>
                     <td></td>
                 </tr>
                 <tr>
-                    <td colspan="5" class="text-right font-bold">Closing Balance...</td>
+                    <td colspan="6" class="text-right font-bold">Closing Balance...</td>
                     <td class="text-right font-bold bg-grey">
                         {{ number_format($closing_balance, 2) }} ({{ $closing_balance_type }})
                     </td>

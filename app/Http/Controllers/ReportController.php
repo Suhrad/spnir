@@ -6452,6 +6452,11 @@ class ReportController extends BaseController
         return $clientId;
     }
 
+    public function get_ledger_data_public($request, $id)
+    {
+        return $this->get_ledger_data($request, $id);
+    }
+
     private function get_ledger_data($request, $id)
     {
         $client = Client::with('company')->findOrFail($id);
@@ -6460,6 +6465,7 @@ class ReportController extends BaseController
 
         $start_date = $request->input('start_date', Carbon::now()->startOfYear()->toDateString());
         $end_date = $request->input('end_date', Carbon::now()->toDateString());
+        $warehouse_id = $request->input('warehouse_id');
 
         // 1. Client Opening Balance
         $client_opening = (double) $client->opening_balance;
@@ -6467,11 +6473,23 @@ class ReportController extends BaseController
             $client_opening = -$client_opening;
         }
 
-        $sales_before = Sale::where('client_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('GrandTotal');
-        $payments_before = PaymentSale::whereHas('sale', function ($q) use ($id) {
+        $sales_before = Sale::where('client_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })->sum('GrandTotal');
+
+        $payments_before = PaymentSale::whereHas('sale', function ($q) use ($id, $warehouse_id) {
             $q->where('client_id', $id);
+            if ($warehouse_id) {
+                $q->where('warehouse_id', $warehouse_id);
+            }
         })->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('montant');
-        $returns_before = SaleReturn::where('client_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('GrandTotal');
+
+        $returns_before = SaleReturn::where('client_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })->sum('GrandTotal');
+
         $deposits_before = Deposit::where('client_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('amount');
 
         $client_effective_opening = $client_opening + $sales_before - ($payments_before + $returns_before + $deposits_before);
@@ -6484,11 +6502,22 @@ class ReportController extends BaseController
                 $provider_opening = -$provider_opening;
             }
 
-            $purchases_before = Purchase::where('provider_id', $provider_id)->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('GrandTotal');
-            $payments_before_p = PaymentPurchase::whereHas('purchase', function ($q) use ($provider_id) {
+            $purchases_before = Purchase::where('provider_id', $provider_id)->where('date', '<', $start_date)->where('deleted_at', '=', null)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })->sum('GrandTotal');
+
+            $payments_before_p = PaymentPurchase::whereHas('purchase', function ($q) use ($provider_id, $warehouse_id) {
                 $q->where('provider_id', $provider_id);
+                if ($warehouse_id) {
+                    $q->where('warehouse_id', $warehouse_id);
+                }
             })->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('montant');
-            $returns_before_p = PurchaseReturn::where('provider_id', $provider_id)->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('GrandTotal');
+
+            $returns_before_p = PurchaseReturn::where('provider_id', $provider_id)->where('date', '<', $start_date)->where('deleted_at', '=', null)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })->sum('GrandTotal');
 
             $provider_effective_opening = $provider_opening + ($payments_before_p + $returns_before_p) - $purchases_before;
         }
@@ -6501,19 +6530,29 @@ class ReportController extends BaseController
             ->where('client_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
             ->get();
 
         $payments = PaymentSale::with('sale')
-            ->whereHas('sale', function ($q) use ($id) {
+            ->whereHas('sale', function ($q) use ($id, $warehouse_id) {
                 $q->where('client_id', $id);
+                if ($warehouse_id) {
+                    $q->where('warehouse_id', $warehouse_id);
+                }
             })
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
             ->get();
 
-        $returns = SaleReturn::where('client_id', $id)
+        $returns = SaleReturn::with('warehouse:id,name')
+            ->where('client_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
             ->get();
 
         $deposits = Deposit::where('client_id', $id)
@@ -6530,19 +6569,29 @@ class ReportController extends BaseController
                 ->where('provider_id', $provider_id)
                 ->whereBetween('date', [$start_date, $end_date])
                 ->where('deleted_at', '=', null)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })
                 ->get();
 
             $payments_p = PaymentPurchase::with('purchase')
-                ->whereHas('purchase', function ($q) use ($provider_id) {
+                ->whereHas('purchase', function ($q) use ($provider_id, $warehouse_id) {
                     $q->where('provider_id', $provider_id);
+                    if ($warehouse_id) {
+                        $q->where('warehouse_id', $warehouse_id);
+                    }
                 })
                 ->whereBetween('date', [$start_date, $end_date])
                 ->where('deleted_at', '=', null)
                 ->get();
 
-            $returns_p = PurchaseReturn::where('provider_id', $provider_id)
+            $returns_p = PurchaseReturn::with('warehouse:id,name')
+                ->where('provider_id', $provider_id)
                 ->whereBetween('date', [$start_date, $end_date])
                 ->where('deleted_at', '=', null)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })
                 ->get();
         }
 
@@ -6559,9 +6608,6 @@ class ReportController extends BaseController
             })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
-            if ($sale->warehouse) {
-                $particulars .= " [" . strtoupper($sale->warehouse->name) . "]";
-            }
             if ($sale->notes) {
                 $particulars .= "\n" . $sale->notes;
             }
@@ -6570,6 +6616,7 @@ class ReportController extends BaseController
                 'date' => $sale->date,
                 'book' => 'Sale',
                 'ref' => $sale->Ref,
+                'warehouse' => $sale->warehouse ? $sale->warehouse->name : '-',
                 'particulars' => $particulars,
                 'debit' => (double) $sale->GrandTotal,
                 'credit' => 0,
@@ -6582,6 +6629,7 @@ class ReportController extends BaseController
                 'date' => $payment->date,
                 'book' => 'Rcpt',
                 'ref' => $payment->Ref,
+                'warehouse' => '-',
                 'particulars' => "CASH\n" . ($payment->notes ? "Note: " . $payment->notes : ""),
                 'debit' => 0,
                 'credit' => (double) $payment->montant,
@@ -6594,6 +6642,7 @@ class ReportController extends BaseController
                 'date' => $return->date,
                 'book' => 'SRtn',
                 'ref' => $return->Ref,
+                'warehouse' => $return->warehouse ? $return->warehouse->name : '-',
                 'particulars' => "SALES RETURN\nRef: " . $return->Ref,
                 'debit' => 0,
                 'credit' => (double) $return->GrandTotal,
@@ -6606,6 +6655,7 @@ class ReportController extends BaseController
                 'date' => $deposit->date,
                 'book' => 'CASH',
                 'ref' => $deposit->deposit_ref,
+                'warehouse' => '-',
                 'particulars' => "CUSTOMER DEPOSIT\n" . $deposit->description,
                 'debit' => 0,
                 'credit' => (double) $deposit->amount,
@@ -6624,9 +6674,6 @@ class ReportController extends BaseController
             })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
-            if ($purchase->warehouse) {
-                $particulars .= " [" . strtoupper($purchase->warehouse->name) . "]";
-            }
             if ($purchase->notes) {
                 $particulars .= "\n" . $purchase->notes;
             }
@@ -6635,6 +6682,7 @@ class ReportController extends BaseController
                 'date' => $purchase->date,
                 'book' => 'Pur',
                 'ref' => $purchase->Ref,
+                'warehouse' => $purchase->warehouse ? $purchase->warehouse->name : '-',
                 'particulars' => $particulars,
                 'debit' => 0,
                 'credit' => (double) $purchase->GrandTotal,
@@ -6647,6 +6695,7 @@ class ReportController extends BaseController
                 'date' => $payment->date,
                 'book' => 'Pay',
                 'ref' => $payment->Ref,
+                'warehouse' => '-',
                 'particulars' => "CASH\n" . ($payment->notes ? "Note: " . $payment->notes : ""),
                 'debit' => (double) $payment->montant,
                 'credit' => 0,
@@ -6659,6 +6708,7 @@ class ReportController extends BaseController
                 'date' => $return->date,
                 'book' => 'PRtn',
                 'ref' => $return->Ref,
+                'warehouse' => $return->warehouse ? $return->warehouse->name : '-',
                 'particulars' => "PURCHASE RETURN\nRef: " . $return->Ref,
                 'debit' => (double) $return->GrandTotal,
                 'credit' => 0,
@@ -6735,6 +6785,7 @@ class ReportController extends BaseController
 
         $start_date = $request->input('start_date', Carbon::now()->startOfYear()->toDateString());
         $end_date = $request->input('end_date', Carbon::now()->toDateString());
+        $warehouse_id = $request->input('warehouse_id');
 
         // opening_balance from provider record (if exists, else 0)
         $opening_balance = (double) ($provider->opening_balance ?? 0);
@@ -6745,11 +6796,22 @@ class ReportController extends BaseController
         }
 
         // Transactions before start_date to get effective opening balance
-        $purchases_before = Purchase::where('provider_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('GrandTotal');
-        $payments_before = PaymentPurchase::whereHas('purchase', function ($q) use ($id) {
+        $purchases_before = Purchase::where('provider_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })->sum('GrandTotal');
+
+        $payments_before = PaymentPurchase::whereHas('purchase', function ($q) use ($id, $warehouse_id) {
             $q->where('provider_id', $id);
+            if ($warehouse_id) {
+                $q->where('warehouse_id', $warehouse_id);
+            }
         })->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('montant');
-        $returns_before = PurchaseReturn::where('provider_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)->sum('GrandTotal');
+
+        $returns_before = PurchaseReturn::where('provider_id', $id)->where('date', '<', $start_date)->where('deleted_at', '=', null)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })->sum('GrandTotal');
 
         // Dr is positive, Cr is negative
         // Purchases are Cr, Payments are Dr, Returns are Dr
@@ -6760,19 +6822,29 @@ class ReportController extends BaseController
             ->where('provider_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
             ->get();
 
         $payments = PaymentPurchase::with('purchase')
-            ->whereHas('purchase', function ($q) use ($id) {
+            ->whereHas('purchase', function ($q) use ($id, $warehouse_id) {
                 $q->where('provider_id', $id);
+                if ($warehouse_id) {
+                    $q->where('warehouse_id', $warehouse_id);
+                }
             })
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
             ->get();
 
-        $returns = PurchaseReturn::where('provider_id', $id)
+        $returns = PurchaseReturn::with('warehouse:id,name')
+            ->where('provider_id', $id)
             ->whereBetween('date', [$start_date, $end_date])
             ->where('deleted_at', '=', null)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
             ->get();
 
         $transactions = collect();
@@ -6788,9 +6860,6 @@ class ReportController extends BaseController
             })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
-            if ($purchase->warehouse) {
-                $particulars .= " [" . strtoupper($purchase->warehouse->name) . "]";
-            }
             if ($purchase->notes) {
                 $particulars .= "\n" . $purchase->notes;
             }
@@ -6799,6 +6868,7 @@ class ReportController extends BaseController
                 'date' => $purchase->date,
                 'book' => 'Purch',
                 'ref' => $purchase->Ref,
+                'warehouse' => $purchase->warehouse ? $purchase->warehouse->name : '-',
                 'particulars' => $particulars,
                 'debit' => 0,
                 'credit' => (double) $purchase->GrandTotal,
@@ -6811,6 +6881,7 @@ class ReportController extends BaseController
                 'date' => $payment->date,
                 'book' => 'Pmt',
                 'ref' => $payment->Ref,
+                'warehouse' => '-',
                 'particulars' => "CASH/BANK\n" . ($payment->notes ? "Note: " . $payment->notes : ""),
                 'debit' => (double) $payment->montant,
                 'credit' => 0,
@@ -6823,6 +6894,7 @@ class ReportController extends BaseController
                 'date' => $return->date,
                 'book' => 'PRtn',
                 'ref' => $return->Ref,
+                'warehouse' => $return->warehouse ? $return->warehouse->name : '-',
                 'particulars' => "PURCHASE RETURN\nRef: " . $return->Ref,
                 'debit' => (double) $return->GrandTotal,
                 'credit' => 0,

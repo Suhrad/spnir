@@ -765,7 +765,12 @@ class ClientController extends BaseController
             ->whereNull('deleted_at')
             ->with(['client:id,name', 'warehouse:id,name'])
             ->where('client_id', $request->id)
-          
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('date', [$request->start_date, $request->end_date]);
+            })
             // Search (Ref, statut, payment_statut, warehouse.name, client.name)
             ->when($request->filled('search'), function ($query) use ($request) {
                 $s = $request->input('search');
@@ -844,6 +849,12 @@ class ClientController extends BaseController
             ->join('sales', 'payment_sales.sale_id', '=', 'sales.id')
             ->join('payment_methods', 'payment_sales.payment_method_id', '=', 'payment_methods.id')
             ->where('sales.client_id', $request->id)
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('sales.warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('payment_sales.date', [$request->start_date, $request->end_date]);
+            })
             ->when($request->filled('search'), function ($query) use ($request) {
                 $s = $request->input('search');
                 $query->where(function ($qr) use ($s) {
@@ -893,17 +904,33 @@ class ClientController extends BaseController
             ->whereNull('deleted_at')
             ->findOrFail($id);
 
+        $warehouse_id = $request->input('warehouse_id');
+        $start_date = $request->input('start_date');
+        $end_date = $request->input('end_date');
+
         // -------- SALES TOTALS --------
         $total_amount = DB::table('sales')
             ->whereNull('deleted_at')
             ->where('statut', 'completed')
             ->where('client_id', $client->id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('GrandTotal');
 
         $total_paid = DB::table('sales')
             ->whereNull('deleted_at')
             ->where('statut', 'completed')
             ->where('client_id', $client->id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('paid_amount');
 
         $sale_due = $total_amount - $total_paid;
@@ -912,24 +939,40 @@ class ClientController extends BaseController
         $total_amount_return = DB::table('sale_returns')
             ->whereNull('deleted_at')
             ->where('client_id', $client->id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('GrandTotal');
 
         $total_paid_return = DB::table('sale_returns')
             ->whereNull('deleted_at')
             ->where('client_id', $client->id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('paid_amount');
 
         $return_due = $total_amount_return - $total_paid_return;
 
         // -------- PAYMENTS TOTALS --------
-
         $payments_total = DB::table('payment_sales')
-        ->join('sales', 'payment_sales.sale_id', '=', 'sales.id')
-        ->whereNull('payment_sales.deleted_at')
-        ->whereNull('sales.deleted_at')
-        ->where('sales.client_id', $client->id)
-        ->sum('payment_sales.montant');
-
+            ->join('sales', 'payment_sales.sale_id', '=', 'sales.id')
+            ->whereNull('payment_sales.deleted_at')
+            ->whereNull('sales.deleted_at')
+            ->where('sales.client_id', $client->id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('sales.warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('payment_sales.date', [$start_date, $end_date]);
+            })
+            ->sum('payment_sales.montant');
 
         // -------- ATTACH STATS TO CLIENT --------
         $client->salesGrand     = $total_amount;
@@ -951,94 +994,15 @@ class ClientController extends BaseController
 
         $this->authorizeForUser($request->user('api'), 'view', Client::class);
 
-        $client = Client::select('id','name','email','phone','code','adresse','country','city','tax_number')
-            ->whereNull('deleted_at')
-            ->findOrFail($request->id);
+        // Call unified ledger generator from ReportController to support filters
+        $reportController = app(\App\Http\Controllers\ReportController::class);
+        $data = $reportController->get_ledger_data_public($request, $request->id);
+        $helpers = new \App\utils\helpers();
+        $data['symbol'] = $helpers->Get_Currency();
 
-        // ---------------- GLOBAL TOTALS ----------------
-        $total_amount = DB::table('sales')
-            ->whereNull('deleted_at')
-            ->where('statut', 'completed')
-            ->where('client_id', $client->id)
-            ->sum('GrandTotal');
+        $pdf = PDF::loadView('pdf.customer_ledger', $data)->setPaper('a4', 'portrait');
 
-        $total_paid = DB::table('sales')
-            ->whereNull('deleted_at')
-            ->where('statut', 'completed')
-            ->where('client_id', $client->id)
-            ->sum('paid_amount');
-
-        $sale_due = $total_amount - $total_paid;
-
-        $total_amount_return = DB::table('sale_returns')
-            ->whereNull('deleted_at')
-            ->where('client_id', $client->id)
-            ->sum('GrandTotal');
-
-        $total_paid_return = DB::table('sale_returns')
-            ->whereNull('deleted_at')
-            ->where('client_id', $client->id)
-            ->sum('paid_amount');
-
-        $return_due = $total_amount_return - $total_paid_return;
-
-        $payments_total = DB::table('payment_sales')
-        ->join('sales', 'payment_sales.sale_id', '=', 'sales.id')
-        ->whereNull('payment_sales.deleted_at')
-        ->whereNull('sales.deleted_at')
-        ->where('sales.client_id', $client->id)
-        ->sum('payment_sales.montant');
-
-        $quotations_total = DB::table('quotations')
-            ->whereNull('deleted_at')
-            ->where('client_id', $client->id)
-            ->sum('GrandTotal');
-
-        // Attach stats to client
-        $client->salesGrand     = $total_amount;
-        $client->salesPaid      = $total_paid;
-        $client->sale_due       = $sale_due;
-        $client->return_due     = $return_due;
-        $client->paymentsTotal  = $payments_total;
-        $client->quotationsTotal = $quotations_total;
-        $client->netBalance     = $sale_due - $return_due;
-
-        // ---------------- FULL DATA (NO FILTERS) ----------------
-        $sales = Sale::with('warehouse:id,name')
-            ->whereNull('deleted_at')
-            ->where('client_id', $client->id)
-            ->orderByDesc('id')->get();
-
-        $payments = DB::table('payment_sales')
-            ->join('sales','payment_sales.sale_id','=','sales.id')
-            ->join('payment_methods','payment_sales.payment_method_id','=','payment_methods.id')
-            ->whereNull('payment_sales.deleted_at')
-            ->where('sales.client_id',$client->id)
-            ->select(
-                'payment_sales.date',
-                'payment_sales.Ref',
-                'sales.Ref as Sale_Ref',
-                'payment_methods.name as payment_method',
-                'payment_sales.montant'
-            )
-            ->orderByDesc('payment_sales.id')->get();
-
-        $quotations = Quotation::with('warehouse:id,name')
-            ->whereNull('deleted_at')
-            ->where('client_id', $client->id)
-            ->orderByDesc('id')->get();
-
-        $returns = SaleReturn::with(['warehouse:id,name','sale:id,Ref'])
-            ->whereNull('deleted_at')
-            ->where('client_id', $client->id)
-            ->orderByDesc('id')->get();
-
-        // ---------------- PDF ----------------
-        $pdf = PDF::loadView('pdf.customer_ledger', compact(
-            'client','sales','payments','quotations','returns'
-        ))->setPaper('a4', 'portrait');
-
-        return $pdf->download("customer_ledger_{$client->id}.pdf");
+        return $pdf->download("customer_ledger_{$request->id}.pdf");
     }
 
 
@@ -1064,6 +1028,12 @@ class ClientController extends BaseController
             ->with('client:id,name','warehouse:id,name')
             ->whereNull('deleted_at')
             ->where('client_id', $request->id)
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('date', [$request->start_date, $request->end_date]);
+            })
             ->when($request->filled('search'), function ($query) use ($request) {
                 $s = $request->input('search');
                 $query->where(function ($qr) use ($s) {
@@ -1125,6 +1095,12 @@ class ClientController extends BaseController
             ->with('sale:id,Ref','client:id,name','warehouse:id,name')
             ->whereNull('deleted_at')
             ->where('client_id', $request->id)
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('date', [$request->start_date, $request->end_date]);
+            })
             ->when($request->filled('search'), function ($query) use ($request) {
                 $s = $request->input('search');
                 $query->where(function ($qr) use ($s) {

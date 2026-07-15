@@ -31,6 +31,38 @@
         </div>
       </div>
 
+      <div class="px-3 py-2 border-bottom bg-light">
+        <b-row class="align-items-center">
+          <b-col md="4" class="mb-2">
+            <label class="small font-weight-bold text-muted mb-1">{{ $t('Warehouse') }}</label>
+            <b-form-select
+              v-model="warehouse_id"
+              :options="warehouseOptions"
+              size="sm"
+              @change="onFilterChange"
+            />
+          </b-col>
+          <b-col md="4" class="mb-2">
+            <label class="small font-weight-bold text-muted mb-1">{{ $t('From') }}</label>
+            <b-form-input
+              type="date"
+              v-model="start_date"
+              size="sm"
+              @change="onFilterChange"
+            />
+          </b-col>
+          <b-col md="4" class="mb-2">
+            <label class="small font-weight-bold text-muted mb-1">{{ $t('To') }}</label>
+            <b-form-input
+              type="date"
+              v-model="end_date"
+              size="sm"
+              @change="onFilterChange"
+            />
+          </b-col>
+        </b-row>
+      </div>
+
       <div class="p-3">
         <b-row>
           <b-col md="3" class="mb-2">
@@ -270,6 +302,10 @@ export default {
       pageLoading:false,
       exportingPdf:false,
       activeTab:0,
+      warehouse_id: null,
+      start_date: "",
+      end_date: "",
+      warehouses: [],
       client:{ id:null, name:'', email:'', phone:'', code:'', adresse:'', country:'', city:'', tax_number:'', salesGrand:0, salesPaid:0, sale_due:0, paymentsTotal:0, return_due:0 },
       sales: makeList(),
       payments: makeList(),
@@ -332,6 +368,12 @@ export default {
         returnsDue : this.client.return_due || 0,
         paymentsTotal: this.client.paymentsTotal || 0
       }
+    },
+    warehouseOptions() {
+      return [
+        { value: null, text: 'All Warehouses' },
+        ...this.warehouses.map(w => ({ value: w.id, text: w.name }))
+      ]
     }
   },
   watch:{
@@ -348,7 +390,8 @@ export default {
   },
   created(){
     this.pageLoading = true
-    this.fetchClientBrief()
+    this.fetchWarehouses()
+      .then(() => this.fetchClientBrief())
       .then(() => Promise.all([
         this.fetchSales(),
         this.fetchPayments(),
@@ -381,18 +424,48 @@ export default {
     },
 
     // ---- header ----
+    async fetchWarehouses(){
+      try {
+        const { data } = await axios.get('/warehouses?limit=-1')
+        this.warehouses = Array.isArray(data?.warehouses) ? data.warehouses : []
+      } catch(e){ /* silent */ }
+    },
     async fetchClientBrief(){
       try {
-        const { data } = await axios.get(`/clients/${this.id}/brief`)
+        const { data } = await axios.get(`/clients/${this.id}/brief`, {
+          params: {
+            warehouse_id: this.warehouse_id || undefined,
+            start_date: this.start_date || undefined,
+            end_date: this.end_date || undefined
+          }
+        })
         this.client = { ...this.client, ...(data || {}) }
       } catch(e){ /* silent */ }
+    },
+    onFilterChange(){
+      this.fetchClientBrief()
+      this.fetchSales()
+      this.fetchPayments()
+      this.fetchQuotations()
+      this.fetchReturns()
     },
 
     // ---- list fetch helpers ----
     async _fetchList(endpoint, state, extraParams = {}, post = null){
       state.loading = true
       try{
-        const { data } = await axios.get(endpoint, { params: { id: this.id, limit: state.limit, page: state.page, search: state.search, ...extraParams } })
+        const { data } = await axios.get(endpoint, {
+          params: {
+            id: this.id,
+            limit: state.limit,
+            page: state.page,
+            search: state.search,
+            warehouse_id: this.warehouse_id || undefined,
+            start_date: this.start_date || undefined,
+            end_date: this.end_date || undefined,
+            ...extraParams
+          }
+        })
         return data
       } finally { state.loading = false }
     },
@@ -448,7 +521,15 @@ export default {
     async exportPdf(){
       this.exportingPdf = true
       try{
-        const res = await axios.get('/client_ledger_pdf', { params:{ id:this.id }, responseType:'blob' })
+        const res = await axios.get('/client_ledger_pdf', {
+          params:{
+            id:this.id,
+            warehouse_id: this.warehouse_id || undefined,
+            start_date: this.start_date || undefined,
+            end_date: this.end_date || undefined
+          },
+          responseType:'blob'
+        })
         const blob = new Blob([res.data], { type:'application/pdf' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
