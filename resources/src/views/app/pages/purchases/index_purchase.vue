@@ -489,6 +489,7 @@ export default {
         {
           label: this.$t("warehouse"),
           field: "warehouse_name",
+          width: "120px",
           tdClass: "text-left",
           thClass: "text-left"
         },

@@ -558,7 +558,7 @@ export default {
       return [
         { label: this.$t("Reference"), field: "Ref" },
         { label: "Items", field: "items" },
-        { label: this.$t("warehouse"), field: "warehouse_name" },
+        { label: this.$t("warehouse"), field: "warehouse_name", width: "120px" },
         { label: this.$t("Total"), field: "GrandTotal", type: "decimal" },
         { label: this.$t("Paid"), field: "paid_amount", type: "decimal" },
         { label: this.$t("Due"), field: "due", type: "decimal" },
@@ -570,7 +570,7 @@ export default {
       return [
         { label: this.$t("date"), field: "date" },
         { label: this.$t("Reference"), field: "Ref" },
-        { label: this.$t("warehouse"), field: "warehouse_name" },
+        { label: this.$t("warehouse"), field: "warehouse_name", width: "120px" },
         { label: this.$t("Total"), field: "GrandTotal" },
         { label: this.$t("Status"), field: "statut", html: true }
       ];
@@ -579,7 +579,7 @@ export default {
       return [
         { label: this.$t("Reference"), field: "Ref" },
         { label: this.$t("Sale_Ref"), field: "sale_ref" },
-        { label: this.$t("warehouse"), field: "warehouse_name" },
+        { label: this.$t("warehouse"), field: "warehouse_name", width: "120px" },
         { label: this.$t("Total"), field: "GrandTotal", type: "decimal" },
         { label: this.$t("Paid"), field: "paid_amount", type: "decimal" },
         { label: this.$t("Due"), field: "due", type: "decimal" },
@@ -591,7 +591,7 @@ export default {
       return [
         { label: this.$t("Reference"), field: "Ref" },
         { label: this.$t("Purchase_Ref"), field: "purchase_ref" },
-        { label: this.$t("warehouse"), field: "warehouse_name" },
+        { label: this.$t("warehouse"), field: "warehouse_name", width: "120px" },
         { label: this.$t("Total"), field: "GrandTotal", type: "decimal" },
         { label: this.$t("Paid"), field: "paid_amount", type: "decimal" },
         { label: this.$t("Due"), field: "due", type: "decimal" },
