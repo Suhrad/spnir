@@ -3,37 +3,52 @@
     <breadcumb :page="company.name || $t('CompanyReport')" :folder="$t('Reports')"/>
     <div v-if="isLoading" class="loading_page spinner spinner-primary mr-3"></div>
 
-    <b-card class="mb-4" v-if="!isLoading">
-      <b-row class="align-items-center">
-        <b-col md="4" class="mb-2">
-          <label class="small font-weight-bold text-muted mb-1">{{ $t('Warehouse') }}</label>
-          <b-form-select
-            v-model="warehouse_id"
-            :options="warehouseOptions"
-            size="sm"
-            @change="onFilterChange"
-          />
-        </b-col>
-        <b-col md="4" class="mb-2">
-          <label class="small font-weight-bold text-muted mb-1">{{ $t('From') }}</label>
-          <b-form-input
-            type="date"
-            v-model="start_date"
-            size="sm"
-            @change="onFilterChange"
-          />
-        </b-col>
-        <b-col md="4" class="mb-2">
-          <label class="small font-weight-bold text-muted mb-1">{{ $t('To') }}</label>
-          <b-form-input
-            type="date"
-            v-model="end_date"
-            size="sm"
-            @change="onFilterChange"
-          />
-        </b-col>
-      </b-row>
-    </b-card>
+    <div class="d-flex justify-content-end mb-3" v-if="!isLoading">
+      <b-button variant="outline-info ripple" size="sm" v-b-toggle.sidebar-right>
+        <i class="i-Filter-2"></i>
+        {{ $t("Filter") }}
+      </b-button>
+    </div>
+
+    <!-- Sidebar Filter -->
+    <b-sidebar id="sidebar-right" :title="$t('Filter')" bg-variant="white" right shadow>
+      <div class="px-3 py-2">
+        <b-row>
+          <!-- Warehouse  -->
+          <b-col md="12">
+            <b-form-group :label="$t('Warehouse')">
+              <b-form-select
+                v-model="warehouse_id"
+                :options="warehouseOptions"
+              />
+            </b-form-group>
+          </b-col>
+
+          <!-- From Date  -->
+          <b-col md="12">
+            <b-form-group :label="$t('From_Date') || 'From Date'">
+              <b-form-input type="date" v-model="start_date"></b-form-input>
+            </b-form-group>
+          </b-col>
+
+          <!-- To Date  -->
+          <b-col md="12">
+            <b-form-group :label="$t('To_Date') || 'To Date'">
+              <b-form-input type="date" v-model="end_date"></b-form-input>
+            </b-form-group>
+          </b-col>
+
+          <b-col md="12" class="mt-3">
+            <b-button @click="Get_Company_Details()" size="sm" variant="primary" block>
+              {{ $t('Filter') }}
+            </b-button>
+            <b-button @click="Reset_Filter()" size="sm" variant="danger" block class="mt-2">
+              {{ $t('Reset') }}
+            </b-button>
+          </b-col>
+        </b-row>
+      </div>
+    </b-sidebar>
 
     <b-row v-if="!isLoading">
       <b-col lg="3" md="6" sm="12">
@@ -634,7 +649,10 @@ export default {
         .catch(() => {});
     },
 
-    onFilterChange() {
+    Reset_Filter() {
+      this.warehouse_id = null;
+      this.start_date = "";
+      this.end_date = "";
       this.Get_Company_Details();
     },
 
@@ -1310,6 +1328,11 @@ export default {
       axios
         .get(url, {
           responseType: "blob",
+          params: {
+            warehouse_id: this.warehouse_id || undefined,
+            start_date: this.start_date || undefined,
+            end_date: this.end_date || undefined
+          },
           headers: {
             "Content-Type": "application/json"
           }
