@@ -3,6 +3,38 @@
     <breadcumb :page="company.name || $t('CompanyReport')" :folder="$t('Reports')"/>
     <div v-if="isLoading" class="loading_page spinner spinner-primary mr-3"></div>
 
+    <b-card class="mb-4" v-if="!isLoading">
+      <b-row class="align-items-center">
+        <b-col md="4" class="mb-2">
+          <label class="small font-weight-bold text-muted mb-1">{{ $t('Warehouse') }}</label>
+          <b-form-select
+            v-model="warehouse_id"
+            :options="warehouseOptions"
+            size="sm"
+            @change="onFilterChange"
+          />
+        </b-col>
+        <b-col md="4" class="mb-2">
+          <label class="small font-weight-bold text-muted mb-1">{{ $t('From') }}</label>
+          <b-form-input
+            type="date"
+            v-model="start_date"
+            size="sm"
+            @change="onFilterChange"
+          />
+        </b-col>
+        <b-col md="4" class="mb-2">
+          <label class="small font-weight-bold text-muted mb-1">{{ $t('To') }}</label>
+          <b-form-input
+            type="date"
+            v-model="end_date"
+            size="sm"
+            @change="onFilterChange"
+          />
+        </b-col>
+      </b-row>
+    </b-card>
+
     <b-row v-if="!isLoading">
       <b-col lg="3" md="6" sm="12">
         <b-card class="card-icon-bg card-icon-bg-primary o-hidden mb-30 text-center">
@@ -424,6 +456,10 @@ export default {
       isLoading: true,
       type: "",
       id: "",
+      warehouse_id: null,
+      start_date: "",
+      end_date: "",
+      warehouses: [],
       company: {
         name: "",
         total_transactions: 0,
@@ -567,6 +603,12 @@ export default {
         { label: "Note", field: "notes" },
         { label: this.$t("Amount"), field: "montant", type: "decimal", tdClass: "text-right", thClass: "text-right" }
       ];
+    },
+    warehouseOptions() {
+      return [
+        { value: null, text: 'All Warehouses' },
+        ...this.warehouses.map(w => ({ value: w.id, text: w.name }))
+      ]
     }
   },
 
@@ -584,8 +626,26 @@ export default {
       // Lazy loading tabs could go here, but we load everything initially
     },
 
+    fetchWarehouses() {
+      return axios.get('warehouses?limit=-1')
+        .then(res => {
+          this.warehouses = Array.isArray(res.data?.warehouses) ? res.data.warehouses : [];
+        })
+        .catch(() => {});
+    },
+
+    onFilterChange() {
+      this.Get_Company_Details();
+    },
+
     Get_Company_Details() {
-      axios.get(`report/company/${this.id}/${this.type}`)
+      axios.get(`report/company/${this.id}/${this.type}`, {
+        params: {
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(response => {
           this.company = response.data.report;
           this.isLoading = false;
@@ -605,7 +665,17 @@ export default {
 
     // ------ SALES & PURCHASES GETTERS ------
     Get_Sales(page) {
-      axios.get(`report/client_sales?page=${page}&limit=${this.limit_sales}&search=${this.search_sales}&id=${this.id}`)
+      axios.get(`report/client_sales`, {
+        params: {
+          page: page,
+          limit: this.limit_sales,
+          search: this.search_sales,
+          id: this.id,
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(res => {
           this.sales = res.data.sales;
           this.totalRows_sales = res.data.totalRows;
@@ -625,7 +695,17 @@ export default {
     },
 
     Get_Purchases(page) {
-      axios.get(`report/provider_purchases?page=${page}&limit=${this.limit_purchases}&search=${this.search_purchases}&id=${this.id}`)
+      axios.get(`report/provider_purchases`, {
+        params: {
+          page: page,
+          limit: this.limit_purchases,
+          search: this.search_purchases,
+          id: this.id,
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(res => {
           this.purchases = res.data.purchases;
           this.totalRows_purchases = res.data.totalRows;
@@ -646,7 +726,17 @@ export default {
 
     // ------ QUOTATIONS GETTER ------
     Get_Quotations(page) {
-      axios.get(`report/client_quotations?page=${page}&limit=${this.limit_quotations}&search=${this.search_quotations}&id=${this.id}`)
+      axios.get(`report/client_quotations`, {
+        params: {
+          page: page,
+          limit: this.limit_quotations,
+          search: this.search_quotations,
+          id: this.id,
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(res => {
           this.quotations = res.data.quotations;
           this.totalRows_quotations = res.data.totalRows;
@@ -667,7 +757,17 @@ export default {
 
     // ------ RETURNS GETTERS ------
     Get_Customer_Returns(page) {
-      axios.get(`report/client_returns?page=${page}&limit=${this.limit_sales_returns}&search=${this.search_sales_returns}&id=${this.id}`)
+      axios.get(`report/client_returns`, {
+        params: {
+          page: page,
+          limit: this.limit_sales_returns,
+          search: this.search_sales_returns,
+          id: this.id,
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(res => {
           this.sales_returns = res.data.returns_customer;
           this.totalRows_sales_returns = res.data.totalRows;
@@ -687,7 +787,17 @@ export default {
     },
 
     Get_Supplier_Returns(page) {
-      axios.get(`report/provider_returns?page=${page}&limit=${this.limit_purchase_returns}&search=${this.search_purchase_returns}&id=${this.id}`)
+      axios.get(`report/provider_returns`, {
+        params: {
+          page: page,
+          limit: this.limit_purchase_returns,
+          search: this.search_purchase_returns,
+          id: this.id,
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(res => {
           this.purchase_returns = res.data.returns_supplier;
           this.totalRows_purchase_returns = res.data.totalRows;
@@ -708,7 +818,17 @@ export default {
 
     // ------ RECEIPTS & PAYMENTS GETTERS ------
     Get_Customer_Payments(page) {
-      axios.get(`report/client_payments?page=${page}&limit=${this.limit_receipts}&search=${this.search_receipts}&id=${this.id}`)
+      axios.get(`report/client_payments`, {
+        params: {
+          page: page,
+          limit: this.limit_receipts,
+          search: this.search_receipts,
+          id: this.id,
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(res => {
           this.receipts = res.data.payments;
           this.totalRows_receipts = res.data.totalRows;
@@ -728,7 +848,17 @@ export default {
     },
 
     Get_Supplier_Payments(page) {
-      axios.get(`report/provider_payments?page=${page}&limit=${this.limit_payments}&search=${this.search_payments}&id=${this.id}`)
+      axios.get(`report/provider_payments`, {
+        params: {
+          page: page,
+          limit: this.limit_payments,
+          search: this.search_payments,
+          id: this.id,
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(res => {
           this.payments = res.data.payments;
           this.totalRows_payments = res.data.totalRows;
@@ -749,7 +879,13 @@ export default {
 
     // ------ LEDGER GETTER ------
     Get_Customer_Ledger() {
-      axios.get(`report/customer_ledger/${this.id}`)
+      axios.get(`report/customer_ledger/${this.id}`, {
+        params: {
+          warehouse_id: this.warehouse_id || undefined,
+          start_date: this.start_date || undefined,
+          end_date: this.end_date || undefined
+        }
+      })
         .then(res => {
           this.ledger = res.data.ledger;
           this.opening_balance = res.data.opening_balance;
@@ -1199,7 +1335,9 @@ export default {
   created() {
     this.type = this.$route.params.type;
     this.id = this.$route.params.id;
-    this.Get_Company_Details();
+    this.fetchWarehouses().then(() => {
+      this.Get_Company_Details();
+    });
   }
 };
 </script>

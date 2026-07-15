@@ -105,13 +105,19 @@ class ReportController extends BaseController
         $Role = Auth::user()->roles()->first();
         $ShowRecord = Role::findOrFail($Role->id)->inRole('record_view');
 
-        $sales = Sale::where('deleted_at', '=', null)->with('client', 'warehouse', 'details.product')
+        $sales = Sale::where('deleted_at', '=', null)->with('client', 'warehouse:id,name,shortcut', 'details.product')
             ->where(function ($query) use ($ShowRecord) {
                 if (!$ShowRecord) {
                     return $query->where('user_id', '=', Auth::user()->id);
                 }
             })
             ->where('client_id', $request->id)
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('date', [$request->start_date, $request->end_date]);
+            })
             // Search With Multiple Param
             ->where(function ($query) use ($request) {
                 return $query->when($request->filled('search'), function ($query) use ($request) {
@@ -145,7 +151,7 @@ class ReportController extends BaseController
             $item['id'] = $sale->id;
             $item['date'] = $sale->date;
             $item['Ref'] = $sale->Ref;
-            $item['warehouse_name'] = $sale['warehouse']->name;
+            $item['warehouse_name'] = $sale['warehouse']->shortcut ?: $sale['warehouse']->name;
             $item['client_name'] = $sale['client']->name;
             $item['statut'] = $sale->statut;
             $item['GrandTotal'] = $sale->GrandTotal;
@@ -196,6 +202,12 @@ class ReportController extends BaseController
             ->join('sales', 'payment_sales.sale_id', '=', 'sales.id')
             ->join('payment_methods', 'payment_sales.payment_method_id', '=', 'payment_methods.id')
             ->where('sales.client_id', $request->id)
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('sales.warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('payment_sales.date', [$request->start_date, $request->end_date]);
+            })
             ->select(
                 'payment_sales.date',
                 'payment_sales.Ref AS Ref',
@@ -215,6 +227,9 @@ class ReportController extends BaseController
             ->where('deposits.deleted_at', '=', null)
             ->leftJoin('accounts', 'deposits.account_id', '=', 'accounts.id')
             ->where('deposits.client_id', $request->id)
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('deposits.date', [$request->start_date, $request->end_date]);
+            })
             ->select(
                 'deposits.date',
                 'deposits.deposit_ref AS Ref',
@@ -271,13 +286,19 @@ class ReportController extends BaseController
         $ShowRecord = Role::findOrFail($Role->id)->inRole('record_view');
         $data = array();
 
-        $Quotations = Quotation::with('client', 'warehouse', 'details.product')
+        $Quotations = Quotation::with('client', 'warehouse:id,name,shortcut', 'details.product')
             ->where('deleted_at', '=', null)
             ->where('client_id', $request->id)
             ->where(function ($query) use ($ShowRecord) {
                 if (!$ShowRecord) {
                     return $query->where('user_id', '=', Auth::user()->id);
                 }
+            })
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('date', [$request->start_date, $request->end_date]);
             })
             //Search With Multiple Param
             ->where(function ($query) use ($request) {
@@ -312,7 +333,7 @@ class ReportController extends BaseController
             $item['date'] = $Quotation->date;
             $item['Ref'] = $Quotation->Ref;
             $item['statut'] = $Quotation->statut;
-            $item['warehouse_name'] = $Quotation['warehouse']->name;
+            $item['warehouse_name'] = $Quotation['warehouse']->shortcut ?: $Quotation['warehouse']->name;
             $item['client_name'] = $Quotation['client']->name;
             $item['GrandTotal'] = $Quotation->GrandTotal;
 
@@ -345,12 +366,18 @@ class ReportController extends BaseController
         $Role = Auth::user()->roles()->first();
         $ShowRecord = Role::findOrFail($Role->id)->inRole('record_view');
 
-        $SaleReturn = SaleReturn::where('deleted_at', '=', null)->with('sale', 'client', 'warehouse')
+        $SaleReturn = SaleReturn::where('deleted_at', '=', null)->with('sale', 'client', 'warehouse:id,name,shortcut')
             ->where('client_id', $request->id)
             ->where(function ($query) use ($ShowRecord) {
                 if (!$ShowRecord) {
                     return $query->where('user_id', '=', Auth::user()->id);
                 }
+            })
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('date', [$request->start_date, $request->end_date]);
             })
             // Search With Multiple Param
             ->where(function ($query) use ($request) {
@@ -392,7 +419,7 @@ class ReportController extends BaseController
             $item['client_name'] = $Sale_Return['client']->name;
             $item['sale_ref'] = $Sale_Return['sale'] ? $Sale_Return['sale']->Ref : '---';
             $item['sale_id'] = $Sale_Return['sale'] ? $Sale_Return['sale']->id : NULL;
-            $item['warehouse_name'] = $Sale_Return['warehouse']->name;
+            $item['warehouse_name'] = $Sale_Return['warehouse']->shortcut ?: $Sale_Return['warehouse']->name;
             $item['GrandTotal'] = $Sale_Return->GrandTotal;
             $item['paid_amount'] = $Sale_Return->paid_amount;
             $item['due'] = $Sale_Return->GrandTotal - $Sale_Return->paid_amount;
@@ -687,12 +714,18 @@ class ReportController extends BaseController
         $ShowRecord = Role::findOrFail($Role->id)->inRole('record_view');
 
         $purchases = Purchase::where('deleted_at', '=', null)
-            ->with('provider', 'warehouse', 'details.product')
+            ->with('provider', 'warehouse:id,name,shortcut', 'details.product')
             ->where('provider_id', $this->getProviderIdFromClientId($request->id))
             ->where(function ($query) use ($ShowRecord) {
                 if (!$ShowRecord) {
                     return $query->where('user_id', '=', Auth::user()->id);
                 }
+            })
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('date', [$request->start_date, $request->end_date]);
             })
             // Search With Multiple Param
             ->where(function ($query) use ($request) {
@@ -725,7 +758,7 @@ class ReportController extends BaseController
         foreach ($purchases as $purchase) {
             $item['id'] = $purchase->id;
             $item['Ref'] = $purchase->Ref;
-            $item['warehouse_name'] = $purchase['warehouse']->name;
+            $item['warehouse_name'] = $purchase['warehouse']->shortcut ?: $purchase['warehouse']->name;
             $item['warehouse_shortcut'] = $purchase['warehouse']->shortcut ?: $purchase['warehouse']->name;
             $item['provider_name'] = $purchase['provider']->name;
             $item['statut'] = $purchase->statut;
@@ -780,6 +813,12 @@ class ReportController extends BaseController
             ->join('purchases', 'payment_purchases.purchase_id', '=', 'purchases.id')
             ->join('payment_methods', 'payment_purchases.payment_method_id', '=', 'payment_methods.id')
             ->where('purchases.provider_id', $this->getProviderIdFromClientId($request->id))
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('purchases.warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('payment_purchases.date', [$request->start_date, $request->end_date]);
+            })
             // Search With Multiple Param
             ->where(function ($query) use ($request) {
                 return $query->when($request->filled('search'), function ($query) use ($request) {
@@ -829,12 +868,18 @@ class ReportController extends BaseController
         $ShowRecord = Role::findOrFail($Role->id)->inRole('record_view');
 
         $PurchaseReturn = PurchaseReturn::where('deleted_at', '=', null)
-            ->with('purchase', 'provider', 'warehouse')
+            ->with('purchase', 'provider', 'warehouse:id,name,shortcut')
             ->where('provider_id', $this->getProviderIdFromClientId($request->id))
             ->where(function ($query) use ($ShowRecord) {
                 if (!$ShowRecord) {
                     return $query->where('user_id', '=', Auth::user()->id);
                 }
+            })
+            ->when($request->filled('warehouse_id'), function ($query) use ($request) {
+                return $query->where('warehouse_id', $request->warehouse_id);
+            })
+            ->when($request->filled('start_date') && $request->filled('end_date'), function ($query) use ($request) {
+                return $query->whereBetween('date', [$request->start_date, $request->end_date]);
             })
             // Search With Multiple Param
             ->where(function ($query) use ($request) {
@@ -876,7 +921,7 @@ class ReportController extends BaseController
             $item['purchase_ref'] = $Purchase_Return['purchase'] ? $Purchase_Return['purchase']->Ref : '---';
             $item['purchase_id'] = $Purchase_Return['purchase'] ? $Purchase_Return['purchase']->id : NULL;
             $item['provider_name'] = $Purchase_Return['provider']->name;
-            $item['warehouse_name'] = $Purchase_Return['warehouse']->name;
+            $item['warehouse_name'] = $Purchase_Return['warehouse']->shortcut ?: $Purchase_Return['warehouse']->name;
             $item['GrandTotal'] = $Purchase_Return->GrandTotal;
             $item['paid_amount'] = $Purchase_Return->paid_amount;
             $item['due'] = $Purchase_Return->GrandTotal - $Purchase_Return->paid_amount;
@@ -7540,27 +7585,52 @@ class ReportController extends BaseController
         $provider = Provider::where('deleted_at', '=', null)->where('name', $client->name)->first();
         $provider_id = $provider ? $provider->id : null;
 
+        $warehouse_id = $request->input('warehouse_id');
+        $start_date = $request->input('start_date');
+        $end_date = $request->input('end_date');
+
         // 1. Customer side totals
         $sales_count = DB::table('sales')
             ->where('deleted_at', '=', null)
             ->where('client_id', $id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->count();
 
         $sales_amount = DB::table('sales')
             ->where('deleted_at', '=', null)
             ->where('statut', 'completed')
             ->where('client_id', $id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('GrandTotal');
 
         $sales_paid = DB::table('sales')
             ->where('deleted_at', '=', null)
             ->where('statut', 'completed')
             ->where('client_id', $id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('paid_amount');
 
         $total_deposits = DB::table('deposits')
             ->where('deleted_at', '=', null)
             ->where('client_id', $id)
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('amount');
 
         $sales_paid += $total_deposits;
@@ -7568,11 +7638,23 @@ class ReportController extends BaseController
         $total_amount_return = DB::table('sale_returns')
             ->where('deleted_at', '=', null)
             ->where('client_id', $id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('GrandTotal');
 
         $total_paid_return = DB::table('sale_returns')
             ->where('deleted_at', '=', null)
             ->where('client_id', $id)
+            ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                return $q->where('warehouse_id', $warehouse_id);
+            })
+            ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                return $q->whereBetween('date', [$start_date, $end_date]);
+            })
             ->sum('paid_amount');
 
         $sale_return_due = $total_amount_return - $total_paid_return;
@@ -7589,28 +7671,58 @@ class ReportController extends BaseController
             $purchases_count = DB::table('purchases')
                 ->where('deleted_at', '=', null)
                 ->where('provider_id', $provider_id)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })
+                ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                    return $q->whereBetween('date', [$start_date, $end_date]);
+                })
                 ->count();
 
             $purchases_amount = DB::table('purchases')
                 ->where('deleted_at', '=', null)
                 ->where('statut', 'received')
                 ->where('provider_id', $provider_id)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })
+                ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                    return $q->whereBetween('date', [$start_date, $end_date]);
+                })
                 ->sum('GrandTotal');
 
             $purchases_paid = DB::table('purchases')
                 ->where('deleted_at', '=', null)
                 ->where('statut', 'received')
                 ->where('provider_id', $provider_id)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })
+                ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                    return $q->whereBetween('date', [$start_date, $end_date]);
+                })
                 ->sum('paid_amount');
 
             $total_amount_return_p = DB::table('purchase_returns')
                 ->where('deleted_at', '=', null)
                 ->where('provider_id', $provider_id)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })
+                ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                    return $q->whereBetween('date', [$start_date, $end_date]);
+                })
                 ->sum('GrandTotal');
 
             $total_paid_return_p = DB::table('purchase_returns')
                 ->where('deleted_at', '=', null)
                 ->where('provider_id', $provider_id)
+                ->when($warehouse_id, function ($q) use ($warehouse_id) {
+                    return $q->where('warehouse_id', $warehouse_id);
+                })
+                ->when($start_date && $end_date, function ($q) use ($start_date, $end_date) {
+                    return $q->whereBetween('date', [$start_date, $end_date]);
+                })
                 ->sum('paid_amount');
 
             $supplier_return_due = $total_amount_return_p - $total_paid_return_p;
