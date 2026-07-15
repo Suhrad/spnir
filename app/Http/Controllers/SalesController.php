@@ -2466,4 +2466,43 @@ class SalesController extends BaseController
             
         }
     }
+
+    public function get_party_product_history(Request $request)
+    {
+        $client_id = $request->input('client_id');
+        $product_id = $request->input('product_id');
+
+        if (!$client_id || !$product_id) {
+            return response()->json([
+                'history' => [],
+                'average_price' => 0
+            ]);
+        }
+
+        $history = DB::table('sale_details')
+            ->join('sales', 'sale_details.sale_id', '=', 'sales.id')
+            ->where('sales.client_id', $client_id)
+            ->where('sale_details.product_id', $product_id)
+            ->where('sales.deleted_at', null)
+            ->select(
+                'sales.date',
+                'sales.Ref',
+                'sale_details.quantity',
+                'sale_details.price'
+            )
+            ->orderBy('sales.date', 'desc')
+            ->orderBy('sales.id', 'desc')
+            ->limit(3)
+            ->get();
+
+        $average_price = 0;
+        if ($history->count() > 0) {
+            $average_price = round($history->avg('price'), 2);
+        }
+
+        return response()->json([
+            'history' => $history,
+            'average_price' => $average_price
+        ]);
+    }
 }

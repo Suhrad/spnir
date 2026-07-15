@@ -443,6 +443,7 @@ Route::middleware(["auth:api", "Is_Active"])->group(function () {
     //-------------------------------  Sales --------------------------\\
     //------------------------------------------------------------------\\
 
+    Route::get('sales/party_product_history', 'SalesController@get_party_product_history');
     Route::post('sales/bulk', 'SalesController@store_bulk');
     Route::resource('sales', 'SalesController');
     Route::get('convert_to_sale_data/{id}', 'SalesController@Elemens_Change_To_Sale');

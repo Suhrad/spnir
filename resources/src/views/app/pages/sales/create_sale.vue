@@ -6,7 +6,7 @@
     <validation-observer ref="create_sale" v-if="!isLoading">
       <b-form @submit.prevent="Submit_Sale">
         <b-row>
-          <b-col lg="12" md="12" sm="12">
+          <b-col :lg="historyState.show ? 8 : 12" md="12" sm="12" style="transition: all 0.3s ease;">
             <b-card>
               <b-row>
 
@@ -159,6 +159,7 @@
                             <b-form-input
                               v-model.number="detail.quantity"
                               @keyup="Verified_Qty(detail,detail.detail_id)"
+                              @focus="fetchPriceHistory(detail)"
                               type="text"
                               inputmode="decimal"
                               class="form-control text-center"
@@ -169,6 +170,7 @@
                             <b-form-input
                               v-model.number="detail.subtotal"
                               @keyup="Manual_Amount_Update(detail)"
+                              @focus="fetchPriceHistory(detail)"
                               type="text"
                               inputmode="decimal"
                               class="form-control text-right"
@@ -218,6 +220,95 @@
                   </b-form-group>
                 </b-col>
               </b-row>
+            </b-card>
+          </b-col>
+
+          <!-- Party Pricing History Panel -->
+          <b-col lg="4" md="12" sm="12" v-if="historyState.show" style="transition: all 0.3s ease;">
+            <b-card no-body class="h-100 shadow-sm border-left">
+              <div class="card-header bg-dark text-white d-flex align-items-center justify-content-between py-2">
+                <h6 class="mb-0 text-15 font-weight-bold text-white">Party Pricing History</h6>
+                <button type="button" class="btn btn-sm btn-link text-white p-0 text-18" @click="historyState.show = false">
+                  <i class="i-Close-Window"></i>
+                </button>
+              </div>
+              <div class="card-body p-3">
+                <div class="mb-3">
+                  <p class="mb-1 text-muted text-12 font-weight-bold uppercase">Active Product</p>
+                  <p class="mb-0 text-16 font-weight-bold text-primary">{{ historyState.productName }}</p>
+                </div>
+
+                <div v-if="historyState.isLoading" class="text-center py-4">
+                  <div class="spinner spinner-primary"></div>
+                  <p class="text-muted mt-2">Loading past rates...</p>
+                </div>
+
+                <div v-else>
+                  <div class="row text-center mb-3">
+                    <div class="col-6 border-right">
+                      <p class="mb-1 text-muted text-11">LAST RATE</p>
+                      <p class="mb-0 text-18 font-weight-bold text-dark">
+                        {{ historyState.lastPrice !== null ? historyState.lastPrice.toFixed(2) : 'N/A' }}
+                      </p>
+                      <b-button 
+                        v-if="historyState.lastPrice !== null"
+                        size="sm" 
+                        variant="outline-primary" 
+                        class="mt-2 py-0 px-2 text-11"
+                        @click="applyHistoryPrice(historyState.lastPrice)"
+                      >
+                        Apply Last
+                      </b-button>
+                    </div>
+                    <div class="col-6">
+                      <p class="mb-1 text-muted text-11">AVERAGE RATE</p>
+                      <p class="mb-0 text-18 font-weight-bold text-success">
+                        {{ historyState.averagePrice ? historyState.averagePrice.toFixed(2) : 'N/A' }}
+                      </p>
+                      <b-button 
+                        v-if="historyState.averagePrice"
+                        size="sm" 
+                        variant="outline-success" 
+                        class="mt-2 py-0 px-2 text-11"
+                        @click="applyHistoryPrice(historyState.averagePrice)"
+                      >
+                        Apply Avg
+                      </b-button>
+                    </div>
+                  </div>
+
+                  <hr class="my-3">
+
+                  <h6 class="text-12 font-weight-bold text-muted uppercase mb-2">Last 3 Transactions</h6>
+                  <div class="table-responsive" v-if="historyState.list.length > 0">
+                    <table class="table table-sm table-striped text-12">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Invoice Ref</th>
+                          <th class="text-right">Qty</th>
+                          <th class="text-right">Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="item in historyState.list" :key="item.Ref">
+                          <td>{{ item.date }}</td>
+                          <td>
+                            <span class="font-weight-bold">{{ item.Ref }}</span>
+                          </td>
+                          <td class="text-right">{{ item.quantity }}</td>
+                          <td class="text-right font-weight-bold text-primary cursor-pointer" @click="applyHistoryPrice(item.price)">
+                            {{ item.price }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="text-center text-muted py-3 text-12" v-else>
+                    No sales history found for this product & customer.
+                  </div>
+                </div>
+              </div>
             </b-card>
           </b-col>
         </b-row>
@@ -358,6 +449,15 @@ export default {
       isLoading: true,
       SubmitProcessing: false,
       Submit_Processing_detail: false,
+      historyState: {
+        show: false,
+        isLoading: false,
+        productName: "",
+        lastPrice: null,
+        averagePrice: null,
+        list: [],
+        activeDetailId: null
+      },
       selectedProductId: null,
       quickProductSearch: "",
       warehouses: [],
@@ -610,7 +710,40 @@ export default {
           detail.tax_method = response.data.tax_method;
           detail.sale_unit_id = response.data.sale_unit_id;
           this.Verified_Qty(detail, detail.detail_id);
+          this.fetchPriceHistory(detail);
         });
+      }
+    },
+
+    fetchPriceHistory(detail) {
+      if (!this.sale.client_id || !detail.product_id) return;
+      this.historyState.isLoading = true;
+      this.historyState.productName = detail.name || "Product";
+      this.historyState.activeDetailId = detail.detail_id;
+      this.historyState.show = true;
+      axios.get(`sales/party_product_history?client_id=${this.sale.client_id}&product_id=${detail.product_id}`)
+        .then(res => {
+          this.historyState.list = res.data.history || [];
+          this.historyState.averagePrice = res.data.average_price || 0;
+          this.historyState.lastPrice = this.historyState.list[0] ? this.historyState.list[0].price : null;
+          this.historyState.isLoading = false;
+        })
+        .catch(() => {
+          this.historyState.isLoading = false;
+        });
+    },
+
+    applyHistoryPrice(price) {
+      const detail = this.details.find(d => d.detail_id === this.historyState.activeDetailId);
+      if (detail) {
+        detail.Unit_price = price;
+        if (detail.quantity > 0) {
+          detail.subtotal = parseFloat((detail.quantity * price).toFixed(2));
+        } else {
+          detail.quantity = 1;
+          detail.subtotal = price;
+        }
+        this.Verified_Qty(detail, detail.detail_id);
       }
     },
 
