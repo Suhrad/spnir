@@ -78,7 +78,7 @@
                 <tr>
                     <th width="70">Date</th>
                     <th width="40">Book</th>
-                    <th width="110">Warehouse</th>
+                    <th width="50">Warehouse</th>
                     <th>Particulars</th>
                     <th width="70">Debit</th>
                     <th width="70">Credit</th>
