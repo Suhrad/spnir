@@ -6550,8 +6550,13 @@ class ReportController extends BaseController
 
         foreach ($sales as $sale) {
             $product_names = $sale->details->map(function ($detail) {
-                return $detail->product ? $detail->product->name : '';
-            })->unique()->filter()->implode(', ');
+                if ($detail->product) {
+                    $qty = (float) $detail->quantity;
+                    $formattedQty = ($qty == (int)$qty) ? (int)$qty : $qty;
+                    return $detail->product->name . ' (' . $formattedQty . ')';
+                }
+                return '';
+            })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
             if ($sale->notes) {
@@ -6607,8 +6612,13 @@ class ReportController extends BaseController
 
         foreach ($purchases as $purchase) {
             $product_names = $purchase->details->map(function ($detail) {
-                return $detail->product ? $detail->product->name : '';
-            })->unique()->filter()->implode(', ');
+                if ($detail->product) {
+                    $qty = (float) $detail->quantity;
+                    $formattedQty = ($qty == (int)$qty) ? (int)$qty : $qty;
+                    return $detail->product->name . ' (' . $formattedQty . ')';
+                }
+                return '';
+            })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
             if ($purchase->notes) {
@@ -6763,8 +6773,13 @@ class ReportController extends BaseController
 
         foreach ($purchases as $purchase) {
             $product_names = $purchase->details->map(function ($detail) {
-                return $detail->product ? $detail->product->name : '';
-            })->unique()->filter()->implode(', ');
+                if ($detail->product) {
+                    $qty = (float) $detail->quantity;
+                    $formattedQty = ($qty == (int)$qty) ? (int)$qty : $qty;
+                    return $detail->product->name . ' (' . $formattedQty . ')';
+                }
+                return '';
+            })->filter()->implode(', ');
 
             $particulars = strtoupper($product_names);
             if ($purchase->notes) {
@@ -6872,7 +6887,10 @@ class ReportController extends BaseController
 
         foreach ($sales as $sale) {
             $items = $sale->details->map(function ($detail) {
-                return ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product'));
+                $name = ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product'));
+                $qty = (float) $detail->quantity;
+                $formattedQty = ($qty == (int)$qty) ? (int)$qty : $qty;
+                return $name . ' (' . $formattedQty . ')';
             })->implode(', ');
 
             $transactions->push([
@@ -6888,7 +6906,10 @@ class ReportController extends BaseController
 
         foreach ($purchases as $purchase) {
             $items = $purchase->details->map(function ($detail) {
-                return ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product'));
+                $name = ($detail->product ? $detail->product->name : ($detail->item_name ?: 'Product'));
+                $qty = (float) $detail->quantity;
+                $formattedQty = ($qty == (int)$qty) ? (int)$qty : $qty;
+                return $name . ' (' . $formattedQty . ')';
             })->implode(', ');
 
             $transactions->push([
