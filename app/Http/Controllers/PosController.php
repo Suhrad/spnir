@@ -116,6 +116,7 @@ class PosController extends BaseController
                     'discount' => $value['discount'],
                     'discount_method' => $value['discount_Method'],
                     'imei_number' => $value['imei_number'],
+                    'rate' => $value['rate'] ?? 0,
                 ];
 
                 if ($value['product_variant_id'] !== null) {
@@ -622,6 +623,7 @@ class PosController extends BaseController
                 'discount' => $value['discount'],
                 'discount_method' => $value['discount_Method'],
                 'imei_number' => $value['imei_number'],
+                'rate' => $value['rate'] ?? 0,
                 ];
             }
 
@@ -720,6 +722,7 @@ class PosController extends BaseController
                         'discount' => $value['discount'],
                         'discount_method' => $value['discount_Method'],
                         'imei_number' => $value['imei_number'],
+                        'rate' => $value['rate'] ?? 0,
                     ];
 
                     if ($value['product_variant_id'] !== null) {

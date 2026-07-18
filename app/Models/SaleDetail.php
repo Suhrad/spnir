@@ -14,7 +14,7 @@ class SaleDetail extends Model
         'deduction_amount_1', 'deduction_percent_2', 'deduction_amount_2', 'deduction_percent_3',
         'deduction_amount_3', 'addition_percent_1', 'addition_amount_1', 'addition_percent_2',
         'addition_amount_2', 'net_amount', 'total_amount', 'goods_or_service_flag', 'stock_flag', 'source_line_hash',
-        'price', 'TaxNet', 'discount', 'discount_method', 'tax_method',
+        'price', 'TaxNet', 'discount', 'discount_method', 'tax_method', 'rate',
     ];
 
     protected $casts = [
@@ -54,6 +54,7 @@ class SaleDetail extends Model
         'addition_amount_2' => 'double',
         'net_amount' => 'double',
         'total_amount' => 'double',
+        'rate' => 'double',
     ];
 
     public function sale()

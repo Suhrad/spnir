@@ -131,8 +131,9 @@
                         <tr>
                           <th scope="col">#</th>
                           <th scope="col">{{$t('ProductName')}}</th>
-                          <th scope="col" style="width: 250px;">{{$t('Qty')}}</th>
-                          <th scope="col" style="width: 250px;">{{$t('Amount')}}</th>
+                          <th scope="col" style="width: 200px;">{{$t('Qty')}}</th>
+                          <th scope="col" style="width: 200px;">{{$t('Rate')}}</th>
+                          <th scope="col" style="width: 200px;">{{$t('Amount')}}</th>
                           <th scope="col" class="text-center">
                             <i class="i-Close-Window text-25"></i>
                           </th>
@@ -163,6 +164,16 @@
                               type="text"
                               inputmode="decimal"
                               class="form-control text-center"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
+                          </td>
+                          <td>
+                            <b-form-input
+                              v-model.number="detail.rate"
+                              @keyup="Verified_Rate(detail)"
+                              type="text"
+                              inputmode="decimal"
+                              class="form-control text-right"
                               style="height: 60px; font-size: 1.8rem; font-weight: bold;"
                             ></b-form-input>
                           </td>
@@ -495,6 +506,7 @@ export default {
         code: "",
         stock: "",
         quantity: 1,
+        rate: "",
         discount: "",
         DiscountNet: "",
         discount_Method: "",
@@ -676,12 +688,20 @@ export default {
       }
       detail.quantity = parseFloat(detail.quantity);
 
-      const unitPrice = parseFloat(detail.Unit_price || 0);
+      const rate = parseFloat(detail.rate || 0);
+      detail.subtotal = parseFloat((detail.quantity * rate).toFixed(2));
+      this.Calcul_Total();
+    },
 
-      if (detail.subtotal > 0 && detail.quantity > 0) {
-        detail.Unit_price = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
-      } else {
-        detail.subtotal = parseFloat((detail.quantity * unitPrice).toFixed(2));
+    Verified_Rate(detail) {
+      if (isNaN(detail.rate) || detail.rate === "") {
+        detail.rate = 0;
+      }
+      detail.rate = parseFloat(detail.rate);
+      detail.Unit_price = detail.rate;
+
+      if (detail.quantity > 0) {
+        detail.subtotal = parseFloat((detail.quantity * detail.rate).toFixed(2));
       }
       this.Calcul_Total();
     },
@@ -690,6 +710,7 @@ export default {
       detail.subtotal = parseFloat(detail.subtotal || 0);
       if (detail.quantity > 0) {
         detail.Unit_price = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
+        detail.rate = detail.Unit_price;
       }
       this.Calcul_Total();
     },
@@ -706,6 +727,7 @@ export default {
         
         axios.get("/show_product_data/" + product.id + "/" + (product.product_variant_id || "null")).then(response => {
           detail.Unit_price = response.data.Unit_price;
+          detail.rate = response.data.Unit_price;
           detail.tax_percent = response.data.tax_percent;
           detail.tax_method = response.data.tax_method;
           detail.sale_unit_id = response.data.sale_unit_id;
@@ -737,6 +759,7 @@ export default {
       const detail = this.details.find(d => d.detail_id === this.historyState.activeDetailId);
       if (detail) {
         detail.Unit_price = price;
+        detail.rate = price;
         if (detail.quantity > 0) {
           detail.subtotal = parseFloat((detail.quantity * price).toFixed(2));
         } else {
@@ -812,28 +835,21 @@ export default {
 
     SearchProduct(result, weight = null) {
       this.product = {};
-      if (
-        this.details.length > 0 &&
-        this.details.some(detail => detail.code === result.code)
-      ) {
-        this.makeToast("warning", this.$t("AlreadyAdd"), this.$t("Warning"));
+      if (result.product_type == 'is_service') {
+        this.product.quantity = 0;
+        this.product.code = result.code;
       } else {
-        if (result.product_type == 'is_service') {
-          this.product.quantity = 0;
-          this.product.code = result.code;
+        this.product.code = result.code;
+        this.product.no_unit = 1;
+        this.product.stock = result.qte_sale;
+        if (weight !== null) {
+          this.product.quantity = weight;
         } else {
-          this.product.code = result.code;
-          this.product.no_unit = 1;
-          this.product.stock = result.qte_sale;
-          if (weight !== null) {
-            this.product.quantity = weight;
-          } else {
-            this.product.quantity = 0;
-          }
+          this.product.quantity = 0;
         }
-        this.product.product_variant_id = result.product_variant_id;
-        this.Get_Product_Details(result.id, result.product_variant_id);
       }
+      this.product.product_variant_id = result.product_variant_id;
+      this.Get_Product_Details(result.id, result.product_variant_id);
 
       this.search_input = '';
       if (this.$refs.product_autocomplete) {
@@ -998,6 +1014,7 @@ export default {
         this.product.sale_unit_id = response.data.sale_unit_id;
         this.product.is_imei = response.data.is_imei;
         this.product.imei_number = '';
+        this.product.rate = '';
         this.add_product();
         this.Calcul_Total();
       });

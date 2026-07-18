@@ -94,7 +94,8 @@
                 <tr>
                     <th width="40">SR#</th>
                     <th>PRODUCT DESCRIPTION</th>
-                    <th width="100">QTY</th>
+                    <th width="80">QTY</th>
+                    <th width="100">RATE</th>
                     <th width="120">AMOUNT</th>
                 </tr>
             </thead>
@@ -110,6 +111,7 @@
                         @endif
                     </td>
                     <td class="text-center">{{ $detail['quantity'] }} {{ $detail['unitSale'] }}</td>
+                    <td class="text-center">{{ isset($detail['rate']) && $detail['rate'] !== null && $detail['rate'] !== '' ? number_format($detail['rate'], 2) : '0.00' }}</td>
                     <td class="text-right font-bold">{{ number_format($detail['total'], 2) }}</td>
                 </tr>
                 @endforeach

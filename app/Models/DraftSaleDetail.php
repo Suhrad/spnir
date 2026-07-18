@@ -9,7 +9,7 @@ class DraftSaleDetail extends Model
 
     protected $fillable = [
         'id', 'date', 'draft_sale_id','sale_unit_id', 'quantity', 'product_id', 'total', 'product_variant_id',
-        'price', 'TaxNet', 'discount', 'discount_method', 'tax_method',
+        'price', 'TaxNet', 'discount', 'discount_method', 'tax_method', 'rate',
     ];
 
     protected $casts = [
@@ -23,6 +23,7 @@ class DraftSaleDetail extends Model
         'price' => 'double',
         'TaxNet' => 'double',
         'discount' => 'double',
+        'rate' => 'double',
     ];
 
     public function draftsale()

@@ -121,6 +121,7 @@
                     <tr>
                       <th scope="col">{{$t('ProductName')}}</th>
                       <th scope="col" class="text-center">{{$t('Quantity')}}</th>
+                      <th scope="col" class="text-center">{{$t('Rate')}}</th>
                       <th scope="col" class="text-right">{{$t('SubTotal')}}</th>
                     </tr>
                   </thead>
@@ -130,10 +131,11 @@
                         <p v-show="detail.is_imei && detail.imei_number !==null ">{{$t('IMEI_SN')}} : {{detail.imei_number}}</p>
                         <p v-if="detail.item_description">{{detail.item_description}}</p>
                         <p v-if="detail.hsn_sac_code || detail.gst_unit">
-                          <small>HSN/SAC: {{detail.hsn_sac_code || 'N/A'}} | GST Unit: {{detail.gst_unit || 'N/A'}}</small>
+                           <small>HSN/SAC: {{detail.hsn_sac_code || 'N/A'}} | GST Unit: {{detail.gst_unit || 'N/A'}}</small>
                         </p>
                       </td>
                       <td class="text-center">{{formatNumber(detail.quantity,2)}} {{detail.unit_sale}}</td>
+                      <td class="text-center">{{detail.rate !== null && detail.rate !== undefined ? formatNumber(detail.rate, 2) : '0.00'}}</td>
                       <td class="text-right">{{currentUser.currency}} {{detail.total.toFixed(2)}}</td>
                     </tr>
                   </tbody>

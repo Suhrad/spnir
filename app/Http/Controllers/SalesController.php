@@ -321,6 +321,7 @@ class SalesController extends BaseController
                 'product_variant_id' => $value['product_variant_id'] ?? null,
                 'total'              => $value['subtotal'] ?? 0,
                 'imei_number'        => $value['imei_number'] ?? '',
+                'rate'               => $value['rate'] ?? 0,
             ];
 
 
@@ -721,6 +722,7 @@ class SalesController extends BaseController
                         $orderDetails['product_variant_id'] = $prod_detail['product_variant_id'];
                         $orderDetails['total']              = $prod_detail['subtotal'];
                         $orderDetails['imei_number']        = $prod_detail['imei_number'];
+                        $orderDetails['rate']               = $prod_detail['rate'] ?? 0;
 
                         if (!in_array($prod_detail['id'], $old_products_id)) {
                             $orderDetails['date'] = $request['date'];
@@ -1191,6 +1193,7 @@ class SalesController extends BaseController
 
             $data['is_imei'] = $detail['product']['is_imei'];
             $data['imei_number'] = $detail->imei_number;
+            $data['rate'] = $detail->rate;
 
             $details[] = $data;
         }
@@ -1425,6 +1428,7 @@ class SalesController extends BaseController
 
             $data['is_imei'] = $detail['product']['is_imei'];
             $data['imei_number'] = $detail->imei_number;
+            $data['rate'] = $detail->rate;
 
             $details[] = $data;
         }
@@ -1646,6 +1650,7 @@ class SalesController extends BaseController
                     $data['subtotal'] = $detail->total;
                 }
 
+                $data['rate'] = $detail->rate;
 
                $details[] = $data;
           }
@@ -1814,6 +1819,8 @@ class SalesController extends BaseController
                     $data['taxe'] = $detail->price - $data['Net_price'] - $data['DiscountNet'];
                     $data['subtotal'] = ($data['Net_price'] * $data['quantity']) + ($tax_price * $data['quantity']);
                 }
+
+                $data['rate'] = $detail->price;
 
                 $details[] = $data;
             }

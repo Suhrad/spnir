@@ -109,6 +109,7 @@
                           <th scope="col">{{$t('Net_Unit_Price')}}</th>
                           <th scope="col">{{$t('CurrentStock')}}</th>
                           <th scope="col">{{$t('Qty')}}</th>
+                          <th scope="col">{{$t('Rate')}}</th>
                           <th scope="col">{{$t('Discount')}}</th>
                           <th scope="col">{{$t('Tax')}}</th>
                           <th scope="col">{{$t('SubTotal')}}</th>
@@ -119,7 +120,7 @@
                       </thead>
                       <tbody>
                         <tr v-if="details.length <=0">
-                          <td colspan="9">{{$t('NodataAvailable')}}</td>
+                          <td colspan="10">{{$t('NodataAvailable')}}</td>
                         </tr>
                         <tr v-for="detail  in details"  :class="{'row_deleted': detail.quantity > detail.stock}">
                           <td>{{detail.detail_id}}</td>
@@ -158,6 +159,16 @@
                                 </b-input-group-append>
                               </b-input-group>
                             </div>
+                          </td>
+                          <td>
+                            <b-form-input
+                              v-model.number="detail.rate"
+                              @keyup="Verified_Rate(detail)"
+                              type="text"
+                              inputmode="decimal"
+                              class="form-control text-right"
+                              style="width: 100px;"
+                            ></b-form-input>
                           </td>
                           <td>{{currentUser.currency}} {{formatNumber(detail.DiscountNet * detail.quantity, 2)}}</td>
                           <td>{{currentUser.currency}} {{formatNumber(detail.taxe * detail.quantity, 2)}}</td>
@@ -637,12 +648,13 @@ export default {
         product_type: "",
         stock: "",
         quantity: 1,
+        rate: "",
         discount: "",
         DiscountNet: "",
         discount_Method: "",
-        sale_unit_id:"",
-        fix_stock:"",
-        fix_price:"",
+        sale_unit_id: "",
+        fix_stock: "",
+        fix_price: "",
         name: "",
         unitSale: "",
         Net_price: "",
@@ -658,7 +670,7 @@ export default {
         del: "",
         etat: "",
         is_imei: "",
-        imei_number:"",
+        imei_number: "",
       }
     };
   },
@@ -1005,31 +1017,24 @@ export default {
 
     SearchProduct(result, weight = null) {
       this.product = {};
-      if (
-        this.details.length > 0 &&
-        this.details.some(detail => detail.code === result.code)
-      ) {
-        this.makeToast("warning", this.$t("AlreadyAdd"), this.$t("Warning"));
-      } else {
-          if( result.product_type =='is_service'){
-            this.product.quantity = 1;
-            this.product.code = result.code;
-          }else{
+      if( result.product_type =='is_service'){
+        this.product.quantity = 1;
+        this.product.code = result.code;
+      }else{
 
-            this.product.code = result.code;
-            this.product.stock = result.qte_sale;
-            this.product.fix_stock = result.qte;
-            
-              // Check if it's a weighing scale product
-              if (weight !== null) {
-                this.product.quantity = weight; // Assign extracted weight
-              } else {
-                this.product.quantity = result.qte_sale < 1 ? result.qte_sale : 1;
-              }
+        this.product.code = result.code;
+        this.product.stock = result.qte_sale;
+        this.product.fix_stock = result.qte;
+        
+          // Check if it's a weighing scale product
+          if (weight !== null) {
+            this.product.quantity = weight; // Assign extracted weight
+          } else {
+            this.product.quantity = result.qte_sale < 1 ? result.qte_sale : 1;
           }
-        this.product.product_variant_id = result.product_variant_id;
-        this.Get_Product_Details(result.id, result.product_variant_id);
       }
+      this.product.product_variant_id = result.product_variant_id;
+      this.Get_Product_Details(result.id, result.product_variant_id);
 
       this.search_input= '';
       this.$refs.product_autocomplete.value = "";
@@ -1096,6 +1101,33 @@ export default {
             this.details[i].quantity = detail.quantity;
           }
         }
+      }
+
+      this.$forceUpdate();
+      this.Calcul_Total();
+    },
+
+    Verified_Rate(detail) {
+      if (isNaN(detail.rate) || detail.rate === "") {
+        detail.rate = 0;
+      }
+      detail.rate = parseFloat(detail.rate);
+      detail.Unit_price = detail.rate;
+
+      // Recalculate discount
+      if (detail.discount_Method == "2") {
+        detail.DiscountNet = detail.discount;
+      } else {
+        detail.DiscountNet = parseFloat((detail.Unit_price * detail.discount) / 100);
+      }
+
+      // Recalculate tax and net price
+      if (detail.tax_method == "1") {
+        detail.Net_price = parseFloat(detail.Unit_price - detail.DiscountNet);
+        detail.taxe = parseFloat((detail.tax_percent * (detail.Unit_price - detail.DiscountNet)) / 100);
+      } else {
+        detail.taxe = parseFloat((detail.Unit_price - detail.DiscountNet) * (detail.tax_percent / 100));
+        detail.Net_price = parseFloat(detail.Unit_price - detail.taxe - detail.DiscountNet);
       }
 
       this.$forceUpdate();
@@ -1351,6 +1383,7 @@ export default {
         this.product.sale_unit_id = response.data.sale_unit_id;
         this.product.is_imei = response.data.is_imei;
         this.product.imei_number = '';
+        this.product.rate = '';
         this.add_product();
         this.Calcul_Total();
       });
@@ -1364,6 +1397,9 @@ export default {
         .then(response => {
           this.sale = response.data.sale;
           this.details = response.data.details;
+          this.details.forEach(detail => {
+            detail.rate = detail.Unit_price;
+          });
           this.clients = response.data.clients;
           this.warehouses = response.data.warehouses;
           this.payment_methods = response.data.payment_methods;

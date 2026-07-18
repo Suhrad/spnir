@@ -134,8 +134,9 @@
                         <tr>
                           <th scope="col">#</th>
                           <th scope="col">{{$t('ProductName')}}</th>
-                          <th scope="col" style="width: 250px;">{{$t('Qty')}}</th>
-                          <th scope="col" style="width: 250px;">{{$t('Amount')}}</th>
+                          <th scope="col" style="width: 200px;">{{$t('Qty')}}</th>
+                          <th scope="col" style="width: 200px;">{{$t('Rate')}}</th>
+                          <th scope="col" style="width: 200px;">{{$t('Amount')}}</th>
                           <th scope="col" class="text-center" v-if="!isReadOnly">
                             <i class="i-Close-Window text-25"></i>
                           </th>
@@ -170,6 +171,17 @@
                               type="text"
                               inputmode="decimal"
                               class="form-control text-center"
+                              style="height: 60px; font-size: 1.8rem; font-weight: bold;"
+                            ></b-form-input>
+                          </td>
+                          <td>
+                            <b-form-input
+                              v-model.number="detail.rate"
+                              :disabled="isReadOnly"
+                              @keyup="Verified_Rate(detail)"
+                              type="text"
+                              inputmode="decimal"
+                              class="form-control text-right"
                               style="height: 60px; font-size: 1.8rem; font-weight: bold;"
                             ></b-form-input>
                           </td>
@@ -424,6 +436,7 @@ export default {
         code: "",
         stock: "",
         quantity: 1,
+        rate: "",
         discount: "",
         DiscountNet: "",
         discount_Method: "",
@@ -622,16 +635,22 @@ export default {
       }
       detail.quantity = parseFloat(detail.quantity);
 
-      const unitPrice = parseFloat(detail.Unit_price || 0);
+      const rate = parseFloat(detail.rate || 0);
+      detail.subtotal = parseFloat((detail.quantity * rate).toFixed(2));
 
-       // If we have a subtotal and quantity > 0, back-calculate the price to keep amount same
-      if (detail.subtotal > 0 && detail.quantity > 0) {
-        detail.Unit_price = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
-      } else {
-        // Fallback: if no subtotal yet, calculate subtotal from price
-        detail.subtotal = parseFloat((detail.quantity * unitPrice).toFixed(2));
+      this.Calcul_Total();
+    },
+
+    Verified_Rate(detail) {
+      if (isNaN(detail.rate) || detail.rate === "") {
+        detail.rate = 0;
       }
+      detail.rate = parseFloat(detail.rate);
+      detail.Unit_price = detail.rate;
 
+      if (detail.quantity > 0) {
+        detail.subtotal = parseFloat((detail.quantity * detail.rate).toFixed(2));
+      }
       this.Calcul_Total();
     },
 
@@ -639,6 +658,7 @@ export default {
       detail.subtotal = parseFloat(detail.subtotal || 0);
       if (detail.quantity > 0) {
         detail.Unit_price = parseFloat((detail.subtotal / detail.quantity).toFixed(2));
+        detail.rate = detail.Unit_price;
       }
       this.Calcul_Total();
     },
@@ -655,6 +675,7 @@ export default {
         detail.name = product.name;
         detail.code = product.code;
         detail.Unit_price = product.Net_price;
+        detail.rate = product.Net_price;
         detail.tax_method = product.tax_method;
         detail.tax_percent = product.tax_percent;
         detail.is_imei = product.is_imei;
@@ -662,6 +683,7 @@ export default {
         // Fetch full details if necessary (though most are in this.products)
         axios.get("/show_product_data/" + product.id + "/" + (product.product_variant_id || "null")).then(response => {
           detail.Unit_price = response.data.Unit_price;
+          detail.rate = response.data.Unit_price;
           detail.tax_percent = response.data.tax_percent;
           detail.tax_method = response.data.tax_method;
           detail.sale_unit_id = response.data.sale_unit_id;
@@ -771,44 +793,35 @@ export default {
 
     //-------------- Submit Search Product
 
-
-    SearchProduct(result, weight = null) {
+     SearchProduct(result, weight = null) {
         this.product = {};
-        if (
-          this.details.length > 0 &&
-          this.details.some(detail => detail.code === result.code)
-        ) {
-          this.makeToast("warning", this.$t("AlreadyAdd"), this.$t("Warning"));
-        } else {
+        if( result.product_type =='is_service'){
+          this.product.quantity = 0;
+          this.product.code = result.code;
+        }else{
 
-            if( result.product_type =='is_service'){
-              this.product.quantity = 0;
-              this.product.code = result.code;
-            }else{
+          this.product.code = result.code;
+          this.product.no_unit = 1;
+          this.product.stock = result.qte_sale;
 
-              this.product.code = result.code;
-              this.product.no_unit = 1;
-              this.product.stock = result.qte_sale;
+          // Check if it's a weighing scale product
+          if (weight !== null) {
+            this.product.quantity = weight; // Assign extracted weight
+          } else {
+            this.product.quantity = 0;
+          }
 
-              // Check if it's a weighing scale product
-              if (weight !== null) {
-                this.product.quantity = weight; // Assign extracted weight
-              } else {
-                this.product.quantity = 0;
-              }
-
-           
-            }
-          this.product.product_variant_id = result.product_variant_id;
-          this.Get_Product_Details(result.id, result.product_variant_id);
+       
         }
+        this.product.product_variant_id = result.product_variant_id;
+        this.Get_Product_Details(result.id, result.product_variant_id);
 
         this.search_input= '';
         if (this.$refs.product_autocomplete) {
           this.$refs.product_autocomplete.value = "";
         }
         this.product_filter = [];
-    },
+     },
 
     //---------------------- Event Select Warehouse ------------------------------\\
     Selected_Warehouse(value) {
@@ -998,6 +1011,7 @@ export default {
         this.product.sale_unit_id = response.data.sale_unit_id;
         this.product.is_imei = response.data.is_imei;
         this.product.imei_number = '';
+        this.product.rate = '';
         this.add_product();
         this.Calcul_Total();
       });
@@ -1011,6 +1025,11 @@ export default {
         .then(response => {
           this.sale = response.data.sale;
           this.details = response.data.details;
+          this.details.forEach(detail => {
+            if (detail.rate === null || detail.rate === undefined || detail.rate === 0) {
+              detail.rate = detail.Unit_price;
+            }
+          });
           this.clients = response.data.clients;
           this.warehouses = response.data.warehouses;
           this.transporters = response.data.transporters;
