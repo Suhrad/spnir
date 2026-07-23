@@ -280,8 +280,8 @@ export default {
             this.limit
         )
         .then(response => {
-          this.transporters = response.data;
-          this.totalRows = response.data.length;
+          this.transporters = response.data.transporters;
+          this.totalRows = response.data.totalRows;
           NProgress.done();
           this.isLoading = false;
         })

@@ -12,8 +12,38 @@ class TransportersController extends Controller
     {
         $this->authorizeForUser($request->user('api'), 'view', Transporter::class);
 
-        $transporters = Transporter::orderBy('id', 'desc')->get();
-        return response()->json($transporters);
+        $perPage = $request->limit ? $request->limit : 10;
+        $pageStart = $request->get('page', 1);
+        $offSet = ($pageStart * $perPage) - $perPage;
+        
+        $order = $request->SortField ? $request->SortField : 'id';
+        $dir = $request->SortType ? $request->SortType : 'desc';
+
+        $query = Transporter::query();
+
+        if ($request->filled('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'LIKE', "%{$request->search}%")
+                  ->orWhere('phone', 'LIKE', "%{$request->search}%")
+                  ->orWhere('address', 'LIKE', "%{$request->search}%");
+            });
+        }
+
+        $totalRows = $query->count();
+        
+        if ($perPage == "-1") {
+            $perPage = $totalRows;
+        }
+
+        $transporters = $query->offset($offSet)
+            ->limit($perPage)
+            ->orderBy($order, $dir)
+            ->get();
+
+        return response()->json([
+            'transporters' => $transporters,
+            'totalRows' => $totalRows,
+        ]);
     }
 
     public function store(Request $request)
