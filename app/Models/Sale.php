@@ -19,7 +19,8 @@ class Sale extends Model
         'irn', 'ack_number', 'ack_date', 'reverse_charge', 'freight_type', 'gst_type', 'party_gstin', 'party_pan',
         'place_of_supply', 'debit_account_name', 'original_bill_series', 'original_bill_number', 'original_bill_date',
         'gross_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'cess_amount', 'qty_cess_amount', 'post_tax_percent',
-        'post_tax_amount', 'post_tax_account_name', 'post_tax_amount_2', 'post_tax_account_name_2', 'round_amount', 'import_remarks'
+        'post_tax_amount', 'post_tax_account_name', 'post_tax_amount_2', 'post_tax_account_name_2', 'round_amount', 'import_remarks',
+        'manual_gst_amount', 'packaging_forwarding_charge'
     ];
 
     protected $casts = [
@@ -51,6 +52,8 @@ class Sale extends Model
         'post_tax_amount' => 'double',
         'post_tax_amount_2' => 'double',
         'round_amount' => 'double',
+        'manual_gst_amount' => 'double',
+        'packaging_forwarding_charge' => 'double',
     ];
 
     public function user()

@@ -210,12 +210,46 @@
                     <tbody>
                       <tr>
                         <td>
-                          <span class="font-weight-bold">{{$t('Total')}}</span>
+                          <span>{{$t('Total')}}</span>
                         </td>
                         <td>
-                          <span
-                            class="font-weight-bold"
-                          >{{currentUser.currency}} {{GrandTotal.toFixed(2)}}</span>
+                          <span>{{currentUser.currency}} {{total.toFixed(2)}}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span>GST Amount</span>
+                        </td>
+                        <td>
+                          <b-form-input
+                            v-model.number="sale.manual_gst_amount"
+                            @keyup="Calcul_Total"
+                            type="number"
+                            step="any"
+                            class="form-control text-right"
+                          ></b-form-input>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span>Packaging & Forwarding</span>
+                        </td>
+                        <td>
+                          <b-form-input
+                            v-model.number="sale.packaging_forwarding_charge"
+                            @keyup="Calcul_Total"
+                            type="number"
+                            step="any"
+                            class="form-control text-right"
+                          ></b-form-input>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span class="font-weight-bold">{{$t('GrandTotal')}}</span>
+                        </td>
+                        <td>
+                          <span class="font-weight-bold">{{currentUser.currency}} {{GrandTotal.toFixed(2)}}</span>
                         </td>
                       </tr>
                     </tbody>
@@ -427,7 +461,9 @@ export default {
         tax_rate: 0,
         TaxNet: 0,
         shipping: 0,
-        discount: 0
+        discount: 0,
+        manual_gst_amount: 0,
+        packaging_forwarding_charge: 0
       },
       total: 0,
       GrandTotal: 0,
@@ -891,10 +927,7 @@ export default {
         this.total = parseFloat((this.total + detail.subtotal).toFixed(2));
       }
 
-      this.GrandTotal = this.total;
-
-      var grand_total =  this.GrandTotal.toFixed(2);
-      this.GrandTotal = parseFloat(grand_total);
+      this.GrandTotal = parseFloat((this.total + (parseFloat(this.sale.manual_gst_amount) || 0) + (parseFloat(this.sale.packaging_forwarding_charge) || 0)).toFixed(2));
     },
 
     //-----------------------------------Delete Detail Product ------------------------------\\
@@ -957,6 +990,8 @@ export default {
             TaxNet: 0,
             discount: 0,
             shipping: 0,
+            manual_gst_amount: this.sale.manual_gst_amount || 0,
+            packaging_forwarding_charge: this.sale.packaging_forwarding_charge || 0,
             details: this.details,
             discount_from_points: this.discount_from_points,
             used_points: this.used_points,

@@ -12,6 +12,7 @@ class DraftSale extends Model
         'date', 'Ref','client_id', 'GrandTotal', 'TaxNet', 'tax_rate',
          'warehouse_id', 'user_id', 'discount', 'shipping',
          'created_at', 'updated_at', 'deleted_at',
+         'manual_gst_amount', 'packaging_forwarding_charge',
     ];
 
     protected $casts = [
@@ -23,6 +24,8 @@ class DraftSale extends Model
         'shipping' => 'double',
         'TaxNet' => 'double',
         'tax_rate' => 'double',
+        'manual_gst_amount' => 'double',
+        'packaging_forwarding_charge' => 'double',
     ];
 
     public function user()

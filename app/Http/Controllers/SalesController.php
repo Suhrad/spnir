@@ -290,6 +290,8 @@ class SalesController extends BaseController
         $order->TaxNet = isset($data['TaxNet']) ? $data['TaxNet'] : 0;
         $order->discount = isset($data['discount']) ? $data['discount'] : 0;
         $order->shipping = isset($data['shipping']) ? $data['shipping'] : 0;
+        $order->manual_gst_amount = isset($data['manual_gst_amount']) ? $data['manual_gst_amount'] : 0;
+        $order->packaging_forwarding_charge = isset($data['packaging_forwarding_charge']) ? $data['packaging_forwarding_charge'] : 0;
         $order->statut = $data['statut'];
         $order->payment_statut = 'unpaid';
         $order->notes = isset($data['notes']) ? $data['notes'] : null;
@@ -787,6 +789,8 @@ class SalesController extends BaseController
                     'TaxNet'       => $request['TaxNet'],
                     'discount'     => $request['discount'],
                     'shipping'     => $request['shipping'],
+                    'manual_gst_amount' => $request['manual_gst_amount'] ?? 0,
+                    'packaging_forwarding_charge' => $request['packaging_forwarding_charge'] ?? 0,
                     'GrandTotal'   => $request['GrandTotal'],
                     'payment_statut' => $payment_statut,
                     'used_points'    => isset($new_used) ? $new_used : 0,
@@ -1101,6 +1105,8 @@ class SalesController extends BaseController
         $sale_details['client_state'] = $sale_data['client']->state;
         $sale_details['client_pin_code'] = $sale_data['client']->pin_code;
         $sale_details['client_place_of_supply'] = $sale_data['client']->place_of_supply;
+        $sale_details['manual_gst_amount'] = number_format($sale_data->manual_gst_amount, 2, '.', '');
+        $sale_details['packaging_forwarding_charge'] = number_format($sale_data->packaging_forwarding_charge, 2, '.', '');
         $sale_details['GrandTotal'] = number_format($sale_data->GrandTotal, 2, '.', '');
         $sale_details['paid_amount'] = number_format($sale_data->paid_amount, 2, '.', '');
         $sale_details['due'] = number_format($sale_details['GrandTotal'] - $sale_details['paid_amount'], 2, '.', '');
@@ -1365,6 +1371,8 @@ class SalesController extends BaseController
         $sale['Ref'] = $sale_data->Ref;
         $sale['date'] = $sale_data->date . ' ' . $sale_data->time;
         $sale['warehouse'] = $sale_data['warehouse']->shortcut ?: $sale_data['warehouse']->name;
+        $sale['manual_gst_amount'] = number_format($sale_data->manual_gst_amount, 2, '.', '');
+        $sale['packaging_forwarding_charge'] = number_format($sale_data->packaging_forwarding_charge, 2, '.', '');
         $sale['GrandTotal'] = number_format($sale_data->GrandTotal, 2, '.', '');
         $sale['paid_amount'] = number_format($sale_data->paid_amount, 2, '.', '');
         $sale['due'] = number_format($sale['GrandTotal'] - $sale['paid_amount'], 2, '.', '');
@@ -1542,6 +1550,8 @@ class SalesController extends BaseController
           $sale['used_points'] = $Sale_data->used_points;
           $sale['discount'] = $Sale_data->discount;
           $sale['shipping'] = $Sale_data->shipping;
+          $sale['manual_gst_amount'] = $Sale_data->manual_gst_amount;
+          $sale['packaging_forwarding_charge'] = $Sale_data->packaging_forwarding_charge;
           $sale['statut'] = $Sale_data->statut;
           $sale['notes'] = $Sale_data->notes;
           $sale['transporter_name'] = $Sale_data->transporter_name;
@@ -1730,6 +1740,8 @@ class SalesController extends BaseController
         $sale['tax_rate'] = $Quotation->tax_rate;
         $sale['discount'] = $Quotation->discount;
         $sale['shipping'] = $Quotation->shipping;
+        $sale['manual_gst_amount'] = 0;
+        $sale['packaging_forwarding_charge'] = 0;
         $sale['statut'] = 'completed';
         $sale['notes'] = $Quotation->notes;
 

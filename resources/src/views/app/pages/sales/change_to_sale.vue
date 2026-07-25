@@ -203,6 +203,34 @@
                       </tr>
                       <tr>
                         <td>
+                          <span>GST Amount</span>
+                        </td>
+                        <td>
+                          <b-form-input
+                            v-model.number="sale.manual_gst_amount"
+                            @keyup="Calcul_Total"
+                            type="number"
+                            step="any"
+                            class="form-control text-right"
+                          ></b-form-input>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span>Packaging & Forwarding</span>
+                        </td>
+                        <td>
+                          <b-form-input
+                            v-model.number="sale.packaging_forwarding_charge"
+                            @keyup="Calcul_Total"
+                            type="number"
+                            step="any"
+                            class="form-control text-right"
+                          ></b-form-input>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
                           <span class="font-weight-bold">{{$t('Total')}}</span>
                         </td>
                         <td>
@@ -638,7 +666,9 @@ export default {
         tax_rate: 0,
         TaxNet: 0,
         shipping: 0,
-        discount: 0
+        discount: 0,
+        manual_gst_amount: 0,
+        packaging_forwarding_charge: 0
       },
       total: 0,
       GrandTotal: 0,
@@ -1256,7 +1286,11 @@ export default {
         (total_without_discount * this.sale.tax_rate) / 100
       );
       this.GrandTotal = parseFloat(
-        total_without_discount + this.sale.TaxNet + this.sale.shipping
+        total_without_discount + 
+        this.sale.TaxNet + 
+        this.sale.shipping + 
+        (parseFloat(this.sale.manual_gst_amount) || 0) + 
+        (parseFloat(this.sale.packaging_forwarding_charge) || 0)
       );
 
       var grand_total =  this.GrandTotal.toFixed(2);
@@ -1330,6 +1364,8 @@ export default {
             TaxNet: this.sale.TaxNet?this.sale.TaxNet:0,
             discount: this.sale.discount?this.sale.discount:0,
             shipping: this.sale.shipping?this.sale.shipping:0,
+            manual_gst_amount: this.sale.manual_gst_amount || 0,
+            packaging_forwarding_charge: this.sale.packaging_forwarding_charge || 0,
             GrandTotal: this.GrandTotal,
             details: this.details,
             payment: this.payment,

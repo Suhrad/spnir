@@ -147,7 +147,31 @@
                 <tbody>
                   <tr>
                     <td>
-                      <span class="font-weight-bold">{{$t('Total')}}</span>
+                      <span>Subtotal</span>
+                    </td>
+                    <td>
+                      <span>{{currentUser.currency}} {{ (parseFloat(sale.GrandTotal) - parseFloat(sale.manual_gst_amount || 0) - parseFloat(sale.packaging_forwarding_charge || 0)).toFixed(2) }}</span>
+                    </td>
+                  </tr>
+                  <tr v-if="parseFloat(sale.manual_gst_amount) > 0">
+                    <td>
+                      <span>GST Amount</span>
+                    </td>
+                    <td>
+                      <span>{{currentUser.currency}} {{ parseFloat(sale.manual_gst_amount).toFixed(2) }}</span>
+                    </td>
+                  </tr>
+                  <tr v-if="parseFloat(sale.packaging_forwarding_charge) > 0">
+                    <td>
+                      <span>Packaging & Forwarding</span>
+                    </td>
+                    <td>
+                      <span>{{currentUser.currency}} {{ parseFloat(sale.packaging_forwarding_charge).toFixed(2) }}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="font-weight-bold">{{$t('GrandTotal')}}</span>
                     </td>
                     <td>
                       <span

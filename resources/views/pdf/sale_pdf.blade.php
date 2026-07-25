@@ -120,6 +120,22 @@
 
         <!-- TOTALS SECTION -->
         <table class="footer-table">
+            <tr>
+                <td>Subtotal</td>
+                <td class="text-right">{{ $symbol }} {{ number_format($sale['GrandTotal'] - ($sale['manual_gst_amount'] ?? 0) - ($sale['packaging_forwarding_charge'] ?? 0), 2) }}</td>
+            </tr>
+            @if(isset($sale['manual_gst_amount']) && $sale['manual_gst_amount'] > 0)
+            <tr>
+                <td>GST Amount</td>
+                <td class="text-right">{{ $symbol }} {{ number_format($sale['manual_gst_amount'], 2) }}</td>
+            </tr>
+            @endif
+            @if(isset($sale['packaging_forwarding_charge']) && $sale['packaging_forwarding_charge'] > 0)
+            <tr>
+                <td>Packaging & Forwarding</td>
+                <td class="text-right">{{ $symbol }} {{ number_format($sale['packaging_forwarding_charge'], 2) }}</td>
+            </tr>
+            @endif
             <tr class="bg-grey">
                 <td>Grand Total</td>
                 <td class="text-right" style="font-size: 15px;">{{ $symbol }} {{ number_format($sale['GrandTotal'], 2) }}</td>
