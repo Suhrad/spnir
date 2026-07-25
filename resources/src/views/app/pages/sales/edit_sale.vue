@@ -218,16 +218,23 @@
                       </tr>
                       <tr>
                         <td>
-                          <span>GST Amount</span>
+                          <span>GST (%)</span>
                         </td>
                         <td>
                           <b-form-input
-                            v-model.number="sale.manual_gst_amount"
+                            v-model="sale.manual_gst_percent"
                             @keyup="Calcul_Total"
-                            type="number"
-                            step="any"
+                            type="text"
                             class="form-control text-right"
                           ></b-form-input>
+                        </td>
+                      </tr>
+                      <tr v-if="sale.manual_gst_amount > 0">
+                        <td>
+                          <span>GST Amount</span>
+                        </td>
+                        <td>
+                          <span>{{currentUser.currency}} {{sale.manual_gst_amount.toFixed(2)}}</span>
                         </td>
                       </tr>
                       <tr>
@@ -236,10 +243,9 @@
                         </td>
                         <td>
                           <b-form-input
-                            v-model.number="sale.packaging_forwarding_charge"
+                            v-model="sale.packaging_forwarding_charge"
                             @keyup="Calcul_Total"
-                            type="number"
-                            step="any"
+                            type="text"
                             class="form-control text-right"
                           ></b-form-input>
                         </td>
@@ -463,7 +469,8 @@ export default {
         shipping: 0,
         discount: 0,
         manual_gst_amount: 0,
-        packaging_forwarding_charge: 0
+        packaging_forwarding_charge: 0,
+        manual_gst_percent: 0
       },
       total: 0,
       GrandTotal: 0,
@@ -927,7 +934,8 @@ export default {
         this.total = parseFloat((this.total + detail.subtotal).toFixed(2));
       }
 
-      this.GrandTotal = parseFloat((this.total + (parseFloat(this.sale.manual_gst_amount) || 0) + (parseFloat(this.sale.packaging_forwarding_charge) || 0)).toFixed(2));
+      this.sale.manual_gst_amount = parseFloat(((this.total * (parseFloat(this.sale.manual_gst_percent) || 0)) / 100).toFixed(2));
+      this.GrandTotal = parseFloat((this.total + this.sale.manual_gst_amount + (parseFloat(this.sale.packaging_forwarding_charge) || 0)).toFixed(2));
     },
 
     //-----------------------------------Delete Detail Product ------------------------------\\
@@ -992,6 +1000,7 @@ export default {
             shipping: 0,
             manual_gst_amount: this.sale.manual_gst_amount || 0,
             packaging_forwarding_charge: this.sale.packaging_forwarding_charge || 0,
+            manual_gst_percent: this.sale.manual_gst_percent || 0,
             details: this.details,
             discount_from_points: this.discount_from_points,
             used_points: this.used_points,

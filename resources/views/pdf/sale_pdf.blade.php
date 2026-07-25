@@ -126,7 +126,7 @@
             </tr>
             @if(isset($sale['manual_gst_amount']) && $sale['manual_gst_amount'] > 0)
             <tr>
-                <td>GST Amount</td>
+                <td>GST ({{ $sale['manual_gst_percent'] }}%)</td>
                 <td class="text-right">{{ $symbol }} {{ number_format($sale['manual_gst_amount'], 2) }}</td>
             </tr>
             @endif

@@ -20,7 +20,7 @@ class Sale extends Model
         'place_of_supply', 'debit_account_name', 'original_bill_series', 'original_bill_number', 'original_bill_date',
         'gross_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'cess_amount', 'qty_cess_amount', 'post_tax_percent',
         'post_tax_amount', 'post_tax_account_name', 'post_tax_amount_2', 'post_tax_account_name_2', 'round_amount', 'import_remarks',
-        'manual_gst_amount', 'packaging_forwarding_charge'
+        'manual_gst_amount', 'packaging_forwarding_charge', 'manual_gst_percent'
     ];
 
     protected $casts = [
@@ -54,6 +54,7 @@ class Sale extends Model
         'round_amount' => 'double',
         'manual_gst_amount' => 'double',
         'packaging_forwarding_charge' => 'double',
+        'manual_gst_percent' => 'double',
     ];
 
     public function user()

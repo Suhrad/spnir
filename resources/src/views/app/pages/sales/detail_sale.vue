@@ -155,7 +155,7 @@
                   </tr>
                   <tr v-if="parseFloat(sale.manual_gst_amount) > 0">
                     <td>
-                      <span>GST Amount</span>
+                      <span>GST ({{ parseFloat(sale.manual_gst_percent) }}%)</span>
                     </td>
                     <td>
                       <span>{{currentUser.currency}} {{ parseFloat(sale.manual_gst_amount).toFixed(2) }}</span>
