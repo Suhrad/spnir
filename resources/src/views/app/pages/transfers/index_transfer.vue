@@ -162,7 +162,7 @@
               <!-- date -->
               <tr>
                 <td>{{$t('date')}}</td>
-                <th>{{transfer.date}}</th>
+                <th>{{transfer.date | formatDate}}</th>
               </tr>
               <!-- Reference -->
               <tr>

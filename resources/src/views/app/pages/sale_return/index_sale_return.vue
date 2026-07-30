@@ -283,7 +283,7 @@
                   <td colspan="5">{{$t('NodataAvailable')}}</td>
                 </tr>
                 <tr v-for="facture in factures">
-                  <td>{{facture.date}}</td>
+                  <td>{{facture.date | formatDate}}</td>
                   <td>{{facture.Ref}}</td>
                   <td>{{currentUser.currency}} {{formatNumber((facture.montant),2)}}</td>
                   <td>{{facture.payment_method?facture.payment_method.name:'---'}}</td>

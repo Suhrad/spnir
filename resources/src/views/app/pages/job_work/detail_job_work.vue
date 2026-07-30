@@ -41,7 +41,7 @@
             <b-col lg="4" md="4" sm="12" class="mb-4">
               <h5 class="font-weight-bold text-muted mb-3">Order Information</h5>
               <div class="h5">Reference : {{ order.Ref }}</div>
-              <div class="h5">Date : {{ order.date }}</div>
+              <div class="h5">Date : {{ order.date | formatDate }}</div>
             </b-col>
 
             <b-col lg="4" md="4" sm="12" class="mb-4">
@@ -98,7 +98,7 @@
                   <tbody>
                     <template v-for="receipt in order.receipts">
                       <tr v-for="(item, dIndex) in receipt.details" :key="item.id">
-                        <td class="font-weight-bold">{{ receipt.Ref }} <br> <small class="text-muted">{{ receipt.date }}</small></td>
+                        <td class="font-weight-bold">{{ receipt.Ref }} <br> <small class="text-muted">{{ receipt.date | formatDate }}</small></td>
                         <td>{{ item.product.name }}</td>
                         <td class="text-center font-weight-bold text-success">{{ item.quantity }}</td>
                         <td class="text-center text-danger">{{ item.wastage }}</td>

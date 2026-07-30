@@ -486,7 +486,7 @@
             <h2 class="text-center">{{company_info.CompanyName}}</h2>
 
             <p>
-                <span>{{$t('date')}} : {{payment.date}} <br></span>
+                <span>{{$t('date')}} : {{payment.date | formatDate}} <br></span>
                 <span >{{$t('Adress')}} : {{company_info.CompanyAdress}} <br></span>
                 <span >{{$t('Phone')}} : {{company_info.CompanyPhone}} <br></span>
                 <span >{{$t('Customer')}} : {{payment.provider_name}} <br></span>
@@ -536,7 +536,7 @@
             <h2 class="text-center">{{company_info.CompanyName}}</h2>
 
             <p>
-                <span>{{$t('date')}} : {{payment_return.date}} <br></span>
+                <span>{{$t('date')}} : {{payment_return.date | formatDate}} <br></span>
                 <span >{{$t('Adress')}} : {{company_info.CompanyAdress}} <br></span>
                 <span >{{$t('Phone')}} : {{company_info.CompanyPhone}} <br></span>
                 <span >{{$t('Customer')}} : {{payment_return.provider_name}} <br></span>

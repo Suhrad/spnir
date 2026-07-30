@@ -81,7 +81,7 @@
                 >{{$t('Sent')}}</span>
                 <span v-else class="badge badge-outline-warning">{{$t('Pending')}}</span>
               </div>
-              <div>{{$t('date')}} : {{quote.date}}</div>
+              <div>{{$t('date')}} : {{quote.date | formatDate}}</div>
               <div>{{$t('warehouse')}} : {{quote.warehouse}}</div>
             </b-col>
           </b-row>

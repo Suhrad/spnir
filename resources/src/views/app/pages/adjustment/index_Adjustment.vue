@@ -149,7 +149,7 @@
               <!-- date -->
               <tr>
                 <td>{{$t('date')}}</td>
-                <th>{{adjustment.date}}</th>
+                <th>{{adjustment.date | formatDate}}</th>
               </tr>
               <!-- Reference -->
               <tr>

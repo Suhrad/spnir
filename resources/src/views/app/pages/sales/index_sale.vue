@@ -215,7 +215,7 @@
                   <td colspan="5">{{$t('NodataAvailable')}}</td>
                 </tr>
                 <tr v-for="payment in payments">
-                  <td>{{payment.date}}</td>
+                  <td>{{payment.date | formatDate}}</td>
                   <td>{{payment.Ref}}</td>
                   <td>{{currentUser.currency}} {{formatNumber(payment.montant,2)}}</td>
                   <td>{{payment.payment_method?payment.payment_method.name:'---'}}</td>
@@ -572,7 +572,7 @@
               <img :src="'/images/'+invoice_pos.setting.logo" alt width="60" height="60">
             </div>
             <p>
-                <span>{{$t('date')}} : {{invoice_pos.sale.date}} <br></span>
+                <span>{{$t('date')}} : {{invoice_pos.sale.date | formatDate}} <br></span>
                 <span>{{$t('Seller')}} : {{invoice_pos.sale.seller_name}} <br></span>
                 <span v-show="pos_settings.show_address">{{$t('Adress')}} : {{invoice_pos.setting.CompanyAdress}} <br></span>
                 <span v-show="pos_settings.show_email">{{$t('Email')}} : {{invoice_pos.setting.email}} <br></span>

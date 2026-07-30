@@ -137,6 +137,68 @@ import '@trevoreyre/autocomplete-vue/dist/style.css';
 
 window.Fire = new Vue();
 
+import moment from "moment";
+
+Vue.filter('formatDate', function(value) {
+  if (!value) return '';
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value;
+  const m = moment(value, ['YYYY-MM-DD', 'YYYY-MM-DD HH:mm:ss'], true);
+  return m.isValid() ? m.format('DD/MM/YYYY') : value;
+});
+
+function formatColumns(cols, moment) {
+  if (Array.isArray(cols)) {
+    cols.forEach(col => {
+      const isDateCol = col.field === 'date' || col.field === 'original_invoice_date' || col.field === 'ack_date' || col.field === 'invoice_date' || col.field === 'next_billing_date';
+      if (isDateCol && !col.formatFn) {
+        col.formatFn = (val) => {
+          if (!val) return '';
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
+          const m = moment(val, ['YYYY-MM-DD', 'YYYY-MM-DD HH:mm:ss'], true);
+          return m.isValid() ? m.format('DD/MM/YYYY') : val;
+        };
+      }
+    });
+  }
+  return cols;
+}
+
+Vue.mixin({
+  beforeCreate() {
+    const options = this.$options;
+
+    // 1. Wrap computed columns if it exists
+    if (options.computed && options.computed.columns) {
+      const originalComputedColumns = options.computed.columns;
+      options.computed.columns = function() {
+        const cols = originalComputedColumns.call(this);
+        return formatColumns(cols, moment);
+      };
+    }
+
+    // 2. Wrap methods columns if it exists
+    if (options.methods && options.methods.columns) {
+      const originalMethodsColumns = options.methods.columns;
+      options.methods.columns = function() {
+        const cols = originalMethodsColumns.call(this);
+        return formatColumns(cols, moment);
+      };
+    }
+
+    // 3. Wrap data function to intercept data columns
+    if (options.data) {
+      const originalData = options.data;
+      options.data = function() {
+        const dataObj = typeof originalData === 'function' ? originalData.call(this) : originalData;
+        if (dataObj && dataObj.columns) {
+          dataObj.columns = formatColumns(dataObj.columns, moment);
+        }
+        return dataObj;
+      };
+    }
+  }
+});
+
 import Breadcumb from "./components/breadcumb";
 import VueI18n from 'vue-i18n';
 Vue.use(VueI18n);
