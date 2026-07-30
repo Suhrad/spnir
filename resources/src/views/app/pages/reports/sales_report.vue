@@ -120,8 +120,32 @@
               <v-select
                 :reduce="label => label.value"
                 placeholder="Choose Seller"
-                v-model="Filter_Client"
+                v-model="Filter_seller"
                 :options="sellers.map(sellers => ({label: sellers.username, value: sellers.id}))"
+              />
+            </b-form-group>
+          </b-col>
+
+           <!-- Product -->
+           <b-col md="12">
+            <b-form-group :label="$t('Product')">
+              <v-select
+                :reduce="label => label.value"
+                :placeholder="$t('Choose_Product')"
+                v-model="Filter_product"
+                :options="products.map(products => ({label: products.name, value: products.id}))"
+              />
+            </b-form-group>
+          </b-col>
+
+           <!-- Category -->
+           <b-col md="12">
+            <b-form-group :label="$t('Category')">
+              <v-select
+                :reduce="label => label.value"
+                :placeholder="$t('Choose_Category')"
+                v-model="Filter_category"
+                :options="categories.map(c => ({label: c.name, value: c.id}))"
               />
             </b-form-group>
           </b-col>
@@ -229,12 +253,16 @@ components: { DateRangePicker },
       Filter_Client: "",
       Filter_warehouse: "",
       Filter_seller: "",
+      Filter_product: "",
+      Filter_category: "",
       Filter_Ref: "",
       Filter_status: "",
       Filter_Payment: "",
       customers: [],
       warehouses: [],
       sellers: [],
+      products: [],
+      categories: [],
       rows: [{
           statut: 'Total',
          
@@ -370,6 +398,8 @@ components: { DateRangePicker },
       this.Filter_Ref = "";
       this.Filter_warehouse = "";
       this.Filter_seller = "";
+      this.Filter_product = "";
+      this.Filter_category = "";
       this.Get_Sales(this.serverParams.page);
     },
 
@@ -522,10 +552,18 @@ components: { DateRangePicker },
       // Simply replaces null values with strings=''
       if (this.Filter_Client === null) {
         this.Filter_Client = "";
-      }else if (this.Filter_warehouse === null) {
+      }
+      if (this.Filter_warehouse === null) {
         this.Filter_warehouse = "";
-      }else if (this.Filter_seller === null) {
+      }
+      if (this.Filter_seller === null) {
         this.Filter_seller = "";
+      }
+      if (this.Filter_product === null) {
+        this.Filter_product = "";
+      }
+      if (this.Filter_category === null) {
+        this.Filter_category = "";
       }
     },
 
@@ -572,6 +610,10 @@ components: { DateRangePicker },
             this.Filter_warehouse +
             "&user_id=" +
             this.Filter_seller +
+            "&product_id=" +
+            this.Filter_product +
+            "&category_id=" +
+            this.Filter_category +
             "&statut=" +
             this.Filter_status +
             "&payment_statut=" +
@@ -599,6 +641,8 @@ components: { DateRangePicker },
           this.customers = response.data.customers;
           this.warehouses = response.data.warehouses;
           this.sellers = response.data.sellers;
+          this.products = response.data.products;
+          this.categories = response.data.categories;
           this.totalRows = response.data.totalRows;
           this.rows[0].children = this.sales;
 

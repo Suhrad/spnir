@@ -208,18 +208,23 @@
                         <td>
                           <b-form-input
                             v-model="sale.manual_gst_percent"
-                            @keyup="Calcul_Total"
+                            @keyup="Calcul_Gst_Percent"
                             type="text"
                             class="form-control text-right"
                           ></b-form-input>
                         </td>
                       </tr>
-                      <tr v-if="sale.manual_gst_amount > 0">
+                      <tr>
                         <td>
                           <span>GST Amount</span>
                         </td>
                         <td>
-                          <span>{{currentUser.currency}} {{sale.manual_gst_amount.toFixed(2)}}</span>
+                          <b-form-input
+                            v-model="sale.manual_gst_amount"
+                            @keyup="Calcul_Gst_Amount"
+                            type="text"
+                            class="form-control text-right"
+                          ></b-form-input>
                         </td>
                       </tr>
                       <tr>
@@ -233,6 +238,14 @@
                             type="text"
                             class="form-control text-right"
                           ></b-form-input>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span>Round Off</span>
+                        </td>
+                        <td>
+                          <span class="float-right font-weight-bold">{{sale.round_amount >= 0 ? '+' : ''}}{{sale.round_amount.toFixed(2)}}</span>
                         </td>
                       </tr>
                       <tr>
@@ -662,6 +675,7 @@ export default {
         amount: "",
         received_amount: "",
       },
+      gst_mode: "percent",
       sale: {
         id: "",
         date: "",
@@ -675,7 +689,8 @@ export default {
         discount: 0,
         manual_gst_amount: 0,
         packaging_forwarding_charge: 0,
-        manual_gst_percent: 0
+        manual_gst_percent: 0,
+        round_amount: 0
       },
       total: 0,
       GrandTotal: 0,
@@ -1292,23 +1307,47 @@ export default {
       this.sale.TaxNet = parseFloat(
         (total_without_discount * this.sale.tax_rate) / 100
       );
-      this.sale.manual_gst_amount = parseFloat(((total_without_discount * (parseFloat(this.sale.manual_gst_percent) || 0)) / 100).toFixed(2));
-      this.GrandTotal = parseFloat(
-        total_without_discount + 
-        this.sale.TaxNet + 
-        this.sale.shipping + 
-        this.sale.manual_gst_amount + 
-        (parseFloat(this.sale.packaging_forwarding_charge) || 0)
-      );
-
-      var grand_total =  this.GrandTotal.toFixed(2);
-      this.GrandTotal = parseFloat(grand_total);
+      if (this.gst_mode === 'percent') {
+        this.sale.manual_gst_amount = parseFloat(((total_without_discount * (parseFloat(this.sale.manual_gst_percent) || 0)) / 100).toFixed(2));
+      } else if (this.gst_mode === 'amount') {
+        const amount = parseFloat(this.sale.manual_gst_amount) || 0;
+        if (total_without_discount > 0) {
+          this.sale.manual_gst_percent = parseFloat(((amount / total_without_discount) * 100).toFixed(2));
+        } else {
+          this.sale.manual_gst_percent = 0;
+        }
+      } else {
+        this.sale.manual_gst_amount = parseFloat(((total_without_discount * (parseFloat(this.sale.manual_gst_percent) || 0)) / 100).toFixed(2));
+      }
+      const exact_total = total_without_discount + this.sale.TaxNet + this.sale.shipping + this.sale.manual_gst_amount + (parseFloat(this.sale.packaging_forwarding_charge) || 0);
+      this.GrandTotal = Math.round(exact_total);
+      this.sale.round_amount = parseFloat((this.GrandTotal - exact_total).toFixed(2));
 
        if(this.payment.status == 'paid'){
           this.payment.amount = this.formatNumber(this.GrandTotal, 2);
       }
 
 
+    },
+
+    Calcul_Gst_Percent() {
+      this.gst_mode = 'percent';
+      const total_without_discount = parseFloat(this.total - this.sale.discount) || 0;
+      const percent = parseFloat(this.sale.manual_gst_percent) || 0;
+      this.sale.manual_gst_amount = parseFloat(((total_without_discount * percent) / 100).toFixed(2));
+      this.Calcul_Total();
+    },
+
+    Calcul_Gst_Amount() {
+      this.gst_mode = 'amount';
+      const total_without_discount = parseFloat(this.total - this.sale.discount) || 0;
+      const amount = parseFloat(this.sale.manual_gst_amount) || 0;
+      if (total_without_discount > 0) {
+        this.sale.manual_gst_percent = parseFloat(((amount / total_without_discount) * 100).toFixed(2));
+      } else {
+        this.sale.manual_gst_percent = 0;
+      }
+      this.Calcul_Total();
     },
 
     //-----------------------------------Delete Detail Product ------------------------------\\
@@ -1376,6 +1415,7 @@ export default {
             packaging_forwarding_charge: this.sale.packaging_forwarding_charge || 0,
             manual_gst_percent: this.sale.manual_gst_percent || 0,
             GrandTotal: this.GrandTotal,
+            round_amount: this.sale.round_amount || 0,
             details: this.details,
             payment: this.payment,
             change: parseFloat(this.payment.received_amount - this.payment.amount).toFixed(2),

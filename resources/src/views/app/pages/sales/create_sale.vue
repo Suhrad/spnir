@@ -213,18 +213,23 @@
                         <td>
                           <b-form-input
                             v-model="sale.manual_gst_percent"
-                            @keyup="Calcul_Total"
+                            @keyup="Calcul_Gst_Percent"
                             type="text"
                             class="form-control text-right"
                           ></b-form-input>
                         </td>
                       </tr>
-                      <tr v-if="sale.manual_gst_amount > 0">
+                      <tr>
                         <td>
                           <span>GST Amount</span>
                         </td>
                         <td>
-                          <span>{{currentUser.currency}} {{sale.manual_gst_amount.toFixed(2)}}</span>
+                          <b-form-input
+                            v-model="sale.manual_gst_amount"
+                            @keyup="Calcul_Gst_Amount"
+                            type="text"
+                            class="form-control text-right"
+                          ></b-form-input>
                         </td>
                       </tr>
                       <tr>
@@ -238,6 +243,14 @@
                             type="text"
                             class="form-control text-right"
                           ></b-form-input>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span>Round Off</span>
+                        </td>
+                        <td>
+                          <span class="float-right font-weight-bold">{{sale.round_amount >= 0 ? '+' : ''}}{{sale.round_amount.toFixed(2)}}</span>
                         </td>
                       </tr>
                       <tr>
@@ -427,6 +440,7 @@ export default {
       pointsConverted: false,
       point_to_amount_rate: 0,
       transporters: [],
+      gst_mode: "percent",
       sale: {
         id: "",
         date: new Date().toISOString().slice(0, 10),
@@ -442,7 +456,8 @@ export default {
         discount: 0,
         manual_gst_amount: 0,
         packaging_forwarding_charge: 0,
-        manual_gst_percent: 0
+        manual_gst_percent: 0,
+        round_amount: 0
       },
       total: 0,
       GrandTotal: 0,
@@ -820,8 +835,39 @@ export default {
         if (isNaN(detail.subtotal)) detail.subtotal = 0;
         this.total = parseFloat((this.total + detail.subtotal).toFixed(2));
       }
-      this.sale.manual_gst_amount = parseFloat(((this.total * (parseFloat(this.sale.manual_gst_percent) || 0)) / 100).toFixed(2));
-      this.GrandTotal = parseFloat((this.total + this.sale.manual_gst_amount + (parseFloat(this.sale.packaging_forwarding_charge) || 0)).toFixed(2));
+      if (this.gst_mode === 'percent') {
+        this.sale.manual_gst_amount = parseFloat(((this.total * (parseFloat(this.sale.manual_gst_percent) || 0)) / 100).toFixed(2));
+      } else if (this.gst_mode === 'amount') {
+        const amount = parseFloat(this.sale.manual_gst_amount) || 0;
+        if (this.total > 0) {
+          this.sale.manual_gst_percent = parseFloat(((amount / this.total) * 100).toFixed(2));
+        } else {
+          this.sale.manual_gst_percent = 0;
+        }
+      } else {
+        this.sale.manual_gst_amount = parseFloat(((this.total * (parseFloat(this.sale.manual_gst_percent) || 0)) / 100).toFixed(2));
+      }
+      const exact_total = this.total + (parseFloat(this.sale.manual_gst_amount) || 0) + (parseFloat(this.sale.packaging_forwarding_charge) || 0);
+      this.GrandTotal = Math.round(exact_total);
+      this.sale.round_amount = parseFloat((this.GrandTotal - exact_total).toFixed(2));
+    },
+
+    Calcul_Gst_Percent() {
+      this.gst_mode = 'percent';
+      const percent = parseFloat(this.sale.manual_gst_percent) || 0;
+      this.sale.manual_gst_amount = parseFloat(((this.total * percent) / 100).toFixed(2));
+      this.Calcul_Total();
+    },
+
+    Calcul_Gst_Amount() {
+      this.gst_mode = 'amount';
+      const amount = parseFloat(this.sale.manual_gst_amount) || 0;
+      if (this.total > 0) {
+        this.sale.manual_gst_percent = parseFloat(((amount / this.total) * 100).toFixed(2));
+      } else {
+        this.sale.manual_gst_percent = 0;
+      }
+      this.Calcul_Total();
     },
 
     delete_Product_Detail(id) {
@@ -877,6 +923,7 @@ export default {
             manual_gst_amount: this.sale.manual_gst_amount || 0,
             packaging_forwarding_charge: this.sale.packaging_forwarding_charge || 0,
             manual_gst_percent: this.sale.manual_gst_percent || 0,
+            round_amount: this.sale.round_amount || 0,
             details: this.details,
             discount_from_points: this.discount_from_points,
             used_points: this.used_points,

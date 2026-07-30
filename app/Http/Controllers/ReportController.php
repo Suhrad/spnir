@@ -596,6 +596,21 @@ class ReportController extends BaseController
 
         //  Check If User Has Permission Show All Records
         $Sales = $helpers->Show_Records($Sales);
+
+        // Filter by Product
+        if ($request->filled('product_id')) {
+            $Sales->whereHas('details', function ($query) use ($request) {
+                $query->where('product_id', $request->product_id);
+            });
+        }
+
+        // Filter by Category
+        if ($request->filled('category_id')) {
+            $Sales->whereHas('details.product', function ($query) use ($request) {
+                $query->where('category_id', $request->category_id);
+            });
+        }
+
         //Multiple Filter
         $Filtred = $helpers->filter($Sales, $columns, $param, $request)
             // Search With Multiple Param
@@ -674,6 +689,7 @@ class ReportController extends BaseController
 
         $customers = client::where('deleted_at', '=', null)->get(['id', 'name']);
         $sellers = User::where('deleted_at', '=', null)->get(['id', 'username']);
+        $products = Product::where('deleted_at', '=', null)->get(['id', 'name']);
 
         //get warehouses assigned to user
         $user_auth = auth()->user();
@@ -684,13 +700,17 @@ class ReportController extends BaseController
             $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
         }
 
+        $categories = Category::where('deleted_at', '=', null)->get(['id', 'name']);
+
         return response()->json(
             [
                 'totalRows' => $totalRows,
                 'sales' => $data,
                 'sellers' => $sellers,
                 'customers' => $customers,
-                'warehouses' => $warehouses
+                'warehouses' => $warehouses,
+                'products' => $products,
+                'categories' => $categories
             ]
         );
     }
@@ -3909,6 +3929,20 @@ class ReportController extends BaseController
                 });
             })
 
+            ->where(function ($query) use ($request) {
+                return $query->when($request->filled('product_id'), function ($query) use ($request) {
+                    return $query->where('product_id', '=', $request->product_id);
+                });
+            })
+
+            ->where(function ($query) use ($request) {
+                return $query->when($request->filled('category_id'), function ($query) use ($request) {
+                    return $query->whereHas('product', function ($q) use ($request) {
+                        $q->where('category_id', '=', $request->category_id);
+                    });
+                });
+            })
+
             // Search With Multiple Param
             ->where(function ($query) use ($request) {
                 return $query->when($request->filled('search'), function ($query) use ($request) {
@@ -3976,7 +4010,7 @@ class ReportController extends BaseController
                 $product_name = $detail['product']['name'];
             }
 
-            $item['date'] = $detail->date;
+            $item['date'] = \Carbon\Carbon::parse($detail->date)->format('d/m/Y');
             $item['Ref'] = $detail['sale']->Ref;
             $item['client_name'] = $detail['sale']['client']->name;
             $item['warehouse_name'] = $detail['sale']['warehouse']->name;
@@ -3999,12 +4033,16 @@ class ReportController extends BaseController
         }
 
         $customers = client::where('deleted_at', '=', null)->get(['id', 'name']);
+        $products = Product::where('deleted_at', '=', null)->get(['id', 'name']);
+        $categories = Category::where('deleted_at', '=', null)->get(['id', 'name']);
 
         return response()->json([
             'totalRows' => $totalRows,
             'sales' => $data,
             'customers' => $customers,
             'warehouses' => $warehouses,
+            'products' => $products,
+            'categories' => $categories,
         ]);
 
     }

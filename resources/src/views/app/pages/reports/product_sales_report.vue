@@ -12,7 +12,7 @@
           :locale-data="locale" > 
 
           <template v-slot:input="picker" style="min-width: 350px;">
-              {{ picker.startDate.toJSON().slice(0, 10)}} - {{ picker.endDate.toJSON().slice(0, 10)}}
+              {{ formatDate(picker.startDate) }} - {{ formatDate(picker.endDate) }}
           </template>        
         </date-range-picker>
       </b-col>
@@ -99,6 +99,30 @@
             </b-form-group>
           </b-col>
 
+          <!-- Product -->
+          <b-col md="12">
+            <b-form-group :label="$t('Product')">
+              <v-select
+                :reduce="label => label.value"
+                :placeholder="$t('Choose_Product')"
+                v-model="Filter_product"
+                :options="products.map(p => ({label: p.name, value: p.id}))"
+              />
+            </b-form-group>
+          </b-col>
+
+          <!-- Category -->
+          <b-col md="12">
+            <b-form-group :label="$t('Category')">
+              <v-select
+                :reduce="label => label.value"
+                :placeholder="$t('Choose_Category')"
+                v-model="Filter_category"
+                :options="categories.map(c => ({label: c.name, value: c.id}))"
+              />
+            </b-form-group>
+          </b-col>
+
           <b-col md="6" sm="12">
             <b-button
               @click="Get_Sales(serverParams.page)"
@@ -177,8 +201,12 @@ export default {
       showDropdown: false,
       Filter_Client: "",
       Filter_warehouse: "",
+      Filter_product: "",
+      Filter_category: "",
       customers: [],
       warehouses: [],
+      products: [],
+      categories: [],
       sales: [],
       limit: "10",
       today_mode: true,
@@ -337,7 +365,14 @@ export default {
       this.search = "";
       this.Filter_Client = "";
       this.Filter_warehouse = "";
+      this.Filter_product = "";
+      this.Filter_category = "";
       this.Get_Sales(this.serverParams.page);
+    },
+
+    formatDate(date) {
+      if (!date) return "";
+      return moment(date).format("DD/MM/YYYY");
     },
 
 
@@ -427,9 +462,16 @@ export default {
       // Simply replaces null values with strings=''
       if (this.Filter_Client === null) {
         this.Filter_Client = "";
-      } else if (this.Filter_warehouse === null) {
+      }
+      if (this.Filter_warehouse === null) {
         this.Filter_warehouse = "";
-      } 
+      }
+      if (this.Filter_product === null) {
+        this.Filter_product = "";
+      }
+      if (this.Filter_category === null) {
+        this.Filter_category = "";
+      }
     },
 
     //----------------------------- Submit Date Picker -------------------\\
@@ -471,6 +513,10 @@ export default {
             this.Filter_Client +
             "&warehouse_id=" +
             this.Filter_warehouse +
+            "&product_id=" +
+            this.Filter_product +
+            "&category_id=" +
+            this.Filter_category +
             "&SortField=" +
             this.serverParams.sort.field +
             "&SortType=" +
@@ -488,6 +534,8 @@ export default {
           this.sales = response.data.sales;
           this.customers = response.data.customers;
           this.warehouses = response.data.warehouses;
+          this.products = response.data.products;
+          this.categories = response.data.categories;
           this.totalRows = response.data.totalRows;
           this.rows[0].children = this.sales;
           // Complete the animation of theprogress bar.

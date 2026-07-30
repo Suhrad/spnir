@@ -285,6 +285,7 @@ class SalesController extends BaseController
         $order->Ref = $this->getNumberOrder();
         $order->client_id = $data['client_id'];
         $order->GrandTotal = $data['GrandTotal'];
+        $order->round_amount = isset($data['round_amount']) ? $data['round_amount'] : 0;
         $order->warehouse_id = $data['warehouse_id'];
         $order->tax_rate = isset($data['tax_rate']) ? $data['tax_rate'] : 0;
         $order->TaxNet = isset($data['TaxNet']) ? $data['TaxNet'] : 0;
@@ -794,6 +795,7 @@ class SalesController extends BaseController
                     'packaging_forwarding_charge' => $request['packaging_forwarding_charge'] ?? 0,
                     'manual_gst_percent' => $request['manual_gst_percent'] ?? 0,
                     'GrandTotal'   => $request['GrandTotal'],
+                    'round_amount' => $request['round_amount'] ?? 0,
                     'payment_statut' => $payment_statut,
                     'used_points'    => isset($new_used) ? $new_used : 0,
                     'earned_points'  => isset($new_earned) ? $new_earned : 0,
