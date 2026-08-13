@@ -65,29 +65,25 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
-                <b-button @click="Sales_PDF()" size="sm" variant="outline-success ripple m-1">
-                  <i class="i-File-Copy"></i> PDF
+                <b-button @click="Sales_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+                  <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Copy"></i> PDF
                 </b-button>
 
-                <vue-excel-xlsx
-                    class="btn btn-sm btn-outline-danger ripple m-1"
-                    :data="sales"
-                    :columns="columns_sales"
-                    :file-name="'sales_report'"
-                    :file-type="'xlsx'"
-                    :sheet-name="'sales_report'"
-                    >
-                    <i class="i-File-Excel"></i> EXCEL
-                </vue-excel-xlsx>
-
+                <b-button @click="export_Excel_Tab('/report/get_sales_by_product', 'sales', columns_sales, search_sales, 'sales_report')" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+                  <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Excel"></i> EXCEL
+                </b-button>
               </div>
                 <template slot="table-row" slot-scope="props">
                   <div v-if="props.column.field == 'Ref'">
@@ -121,28 +117,25 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
-                <b-button @click="Quotation_PDF()" size="sm" variant="outline-success ripple m-1">
-                  <i class="i-File-Copy"></i> PDF
+                <b-button @click="Quotation_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+                  <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Copy"></i> PDF
                 </b-button>
 
-                <vue-excel-xlsx
-                    class="btn btn-sm btn-outline-danger ripple m-1"
-                    :data="quotations"
-                    :columns="columns_quotations"
-                    :file-name="'Quotation_report'"
-                    :file-type="'xlsx'"
-                    :sheet-name="'Quotation_report'"
-                    >
-                    <i class="i-File-Excel"></i> EXCEL
-                </vue-excel-xlsx>
+                <b-button @click="export_Excel_Tab('/report/get_quotations_by_product', 'quotations', columns_quotations, search_quotations, 'Quotation_report')" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+                  <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Excel"></i> EXCEL
+                </b-button>
               </div>
                 <template slot="table-row" slot-scope="props">
                   
@@ -177,28 +170,25 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
-                <b-button @click="Purchase_PDF()" size="sm" variant="outline-success ripple m-1">
-                  <i class="i-File-Copy"></i> PDF
+                <b-button @click="Purchase_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+                  <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Copy"></i> PDF
                 </b-button>
 
-                <vue-excel-xlsx
-                    class="btn btn-sm btn-outline-danger ripple m-1"
-                    :data="purchases"
-                    :columns="columns_purchases"
-                    :file-name="'purchases_report'"
-                    :file-type="'xlsx'"
-                    :sheet-name="'purchases_report'"
-                    >
-                    <i class="i-File-Excel"></i> EXCEL
-                </vue-excel-xlsx>
+                <b-button @click="export_Excel_Tab('/report/get_purchases_by_product', 'purchases', columns_purchases, search_purchases, 'purchases_report')" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+                  <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Excel"></i> EXCEL
+                </b-button>
               </div>
                 <template slot="table-row" slot-scope="props">
                    <div v-if="props.column.field == 'Ref'">
@@ -232,28 +222,25 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
-                <b-button @click="Sale_Return_PDF()" size="sm" variant="outline-success ripple m-1">
-                  <i class="i-File-Copy"></i> PDF
+                <b-button @click="Sale_Return_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+                  <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Copy"></i> PDF
                 </b-button>
 
-                <vue-excel-xlsx
-                    class="btn btn-sm btn-outline-danger ripple m-1"
-                    :data="sales_return"
-                    :columns="columns_sales_return"
-                    :file-name="'sales_return_report'"
-                    :file-type="'xlsx'"
-                    :sheet-name="'sales_return_report'"
-                    >
-                    <i class="i-File-Excel"></i> EXCEL
-                </vue-excel-xlsx>
+                <b-button @click="export_Excel_Tab('/report/get_sales_return_by_product', 'sales_return', columns_sales_return, search_return_sales, 'sales_return_report')" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+                  <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Excel"></i> EXCEL
+                </b-button>
               </div>
                 <template slot="table-row" slot-scope="props">
                   
@@ -287,29 +274,26 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
                <div slot="table-actions" class="mt-2 mb-3">
-                <b-button @click="Returns_Purchase_PDF()" size="sm" variant="outline-success ripple m-1">
-                  <i class="i-File-Copy"></i> PDF
-                </b-button>
+                 <b-button @click="Returns_Purchase_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+                   <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+                   <i v-else class="i-File-Copy"></i> PDF
+                 </b-button>
 
-                <vue-excel-xlsx
-                    class="btn btn-sm btn-outline-danger ripple m-1"
-                    :data="purchases_return"
-                    :columns="columns_purchase_return"
-                    :file-name="'purchases_return_report'"
-                    :file-type="'xlsx'"
-                    :sheet-name="'purchases_return_report'"
-                    >
-                    <i class="i-File-Excel"></i> EXCEL
-                </vue-excel-xlsx>
-              </div>
+                 <b-button @click="export_Excel_Tab('/report/get_purchase_return_by_product', 'purchases_return', columns_purchase_return, search_return_purchases, 'purchases_return_report')" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+                   <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+                   <i v-else class="i-File-Excel"></i> EXCEL
+                 </b-button>
+               </div>
                 <template slot="table-row" slot-scope="props">
                   
                   <div v-if="props.column.field == 'Ref'">
@@ -342,16 +326,19 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
-                <b-button @click="Transfer_PDF()" size="sm" variant="outline-success ripple m-1">
-                  <i class="i-File-Copy"></i> PDF
+                <b-button @click="Transfer_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+                  <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Copy"></i> PDF
                 </b-button>
               </div>
                
@@ -373,24 +360,36 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
-               <div slot="table-actions" class="mt-2 mb-3">
-                <b-button @click="Adjustment_PDF()" size="sm" variant="outline-success ripple m-1">
-                  <i class="i-File-Copy"></i> PDF
-                </b-button>
-              </div>
+                <div slot="table-actions" class="mt-2 mb-3">
+                 <b-button @click="Adjustment_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+                   <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+                   <i v-else class="i-File-Copy"></i> PDF
+                 </b-button>
+               </div>
               </vue-good-table>
             </b-tab>
 
              
 
           </b-tabs>
+          <vue-excel-xlsx
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_data"
+            :columns="excel_columns"
+            :file-name="excel_filename"
+            :file-type="'xlsx'"
+            :sheet-name="excel_filename"
+          />
         </b-card>
       </b-col>
     </b-row>
@@ -447,6 +446,11 @@ export default {
       purchases_return: [],
       transfers: [],
       adjustments: [],
+      excel_data: [],
+      excel_columns: [],
+      excel_filename: '',
+      exporting_pdf: false,
+      exporting_excel: false,
     };
   },
 
@@ -779,298 +783,509 @@ export default {
   methods: {
 
      //----------------------------------- Sales PDF ------------------------------\\
+    export_Excel_Tab(apiEndpoint, payloadKey, columnsFunc, searchVal, filename) {
+      this.exporting_excel = true;
+      NProgress.start();
+      let id = this.$route.params.id;
+      axios.get(`${apiEndpoint}?page=1&limit=-1&search=${searchVal}&id=${id}`)
+      .then(response => {
+        let items = response.data[payloadKey];
+
+        // For Excel, calculate totals if the items have quantity and total fields
+        let hasQuantity = items.some(item => 'quantity' in item);
+        let hasTotal = items.some(item => 'total' in item);
+
+        if (hasQuantity || hasTotal) {
+          let totals = {
+            date: 'Total',
+            Ref: '',
+            product_name: '',
+            client_name: '',
+            provider_name: '',
+            warehouse_name: '',
+          };
+          if (hasQuantity) {
+            totals.quantity = items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toFixed(2);
+          }
+          if (hasTotal) {
+            totals.total = items.reduce((sum, item) => sum + parseFloat(item.total || 0), 0).toFixed(2);
+          }
+          items.push(totals);
+        }
+
+        this.excel_data = items;
+        this.excel_columns = columnsFunc();
+        this.excel_filename = filename;
+
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      })
+      .catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     Sales_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      axios.get("/report/get_sales_by_product?page=1&limit=-1&search=" + self.search_sales + "&id=" + self.$route.params.id)
+      .then(response => {
+        let all_sales = response.data.sales;
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let columns = [
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("product_name"), dataKey: "product_name" },
+          { title: self.$t("Customer"), dataKey: "client_name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+          { title: self.$t("Quantity"), dataKey: "quantity" },
+          { title: self.$t("SubTotal"), dataKey: "total" },
+        ];
 
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("product_name"), dataKey: "product_name" },
-        { title: self.$t("Customer"), dataKey: "client_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Quantity"), dataKey: "quantity" },
-        { title: self.$t("SubTotal"), dataKey: "total" },
-      ];
+        // Calculate totals
+        let totalQuantity = all_sales.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        let totalAmount = all_sales.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
 
-      pdf.autoTable({
-             columns: columns,
-             body: self.sales,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Sales List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+        let footer = [{
+          date: self.$t("Total"),
+          Ref: '',
+          product_name: '',
+          client_name: '',
+          warehouse_name: '',
+          quantity: `${totalQuantity.toFixed(2)}`,
+          total: `${totalAmount.toFixed(2)}`,
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: all_sales,
+          foot: footer,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Sales List", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+          footStyles: {
+            fillColor: [230, 230, 230], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
+        pdf.save("Sale_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      })
+      .catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-      pdf.save("Sale_List.pdf");
     },
 
-      //------------------------------------- Quotations PDF -------------------------\\
     Quotation_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      axios.get("/report/get_quotations_by_product?page=1&limit=-1&search=" + self.search_quotations + "&id=" + self.$route.params.id)
+      .then(response => {
+        let all_quotations = response.data.quotations;
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let columns = [
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("product_name"), dataKey: "product_name" },
+          { title: self.$t("Customer"), dataKey: "client_name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+          { title: self.$t("Quantity"), dataKey: "quantity" },
+          { title: self.$t("SubTotal"), dataKey: "total" },
+        ];
 
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("product_name"), dataKey: "product_name" },
-        { title: self.$t("Customer"), dataKey: "client_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Quantity"), dataKey: "quantity" },
-        { title: self.$t("SubTotal"), dataKey: "total" },
-      ];
+        // Calculate totals
+        let totalQuantity = all_quotations.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        let totalAmount = all_quotations.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
 
-      pdf.autoTable({
-             columns: columns,
-             body: self.quotations,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Quotation List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+        let footer = [{
+          date: self.$t("Total"),
+          Ref: '',
+          product_name: '',
+          client_name: '',
+          warehouse_name: '',
+          quantity: `${totalQuantity.toFixed(2)}`,
+          total: `${totalAmount.toFixed(2)}`,
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: all_quotations,
+          foot: footer,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Quotation List", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+          footStyles: {
+            fillColor: [230, 230, 230], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
+        pdf.save("Quotation_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      })
+      .catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("Quotation_List.pdf");
     },
 
-     //---------------------- Purchases PDF -------------------------------\\
     Purchase_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      axios.get("report/get_purchases_by_product?page=1&limit=-1&search=" + self.search_purchases + "&id=" + self.$route.params.id)
+      .then(response => {
+        let all_purchases = response.data.purchases;
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let columns = [
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("product_name"), dataKey: "product_name" },
+          { title: self.$t("Supplier"), dataKey: "provider_name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+          { title: self.$t("Quantity"), dataKey: "quantity" },
+          { title: self.$t("SubTotal"), dataKey: "total" },
+        ];
 
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("product_name"), dataKey: "product_name" },
-        { title: self.$t("Supplier"), dataKey: "provider_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Quantity"), dataKey: "quantity" },
-        { title: self.$t("SubTotal"), dataKey: "total" },
-      ];
+        // Calculate totals
+        let totalQuantity = all_purchases.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        let totalAmount = all_purchases.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
 
-      pdf.autoTable({
-             columns: columns,
-             body: self.purchases,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Purchase List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+        let footer = [{
+          date: self.$t("Total"),
+          Ref: '',
+          product_name: '',
+          provider_name: '',
+          warehouse_name: '',
+          quantity: `${totalQuantity.toFixed(2)}`,
+          total: `${totalAmount.toFixed(2)}`,
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: all_purchases,
+          foot: footer,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Purchase List", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+          footStyles: {
+            fillColor: [230, 230, 230], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
+        pdf.save("Purchase_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      })
+      .catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("Purchase_List.pdf");
     },
 
-     //----------------------------------------- Sales Return PDF -----------------------\\
     Sale_Return_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      axios.get("/report/get_sales_return_by_product?page=1&limit=-1&search=" + self.search_return_sales + "&id=" + self.$route.params.id)
+      .then(response => {
+        let all_sales_return = response.data.sales_return;
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let columns = [
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("product_name"), dataKey: "product_name" },
+          { title: self.$t("Customer"), dataKey: "client_name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+          { title: self.$t("Quantity"), dataKey: "quantity" },
+          { title: self.$t("SubTotal"), dataKey: "total" },
+        ];
 
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("product_name"), dataKey: "product_name" },
-        { title: self.$t("Customer"), dataKey: "client_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Quantity"), dataKey: "quantity" },
-        { title: self.$t("SubTotal"), dataKey: "total" },
-      ];
+        // Calculate totals
+        let totalQuantity = all_sales_return.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        let totalAmount = all_sales_return.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
 
-      pdf.autoTable({
-             columns: columns,
-             body: self.sales_return,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Sales Return List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+        let footer = [{
+          date: self.$t("Total"),
+          Ref: '',
+          product_name: '',
+          client_name: '',
+          warehouse_name: '',
+          quantity: `${totalQuantity.toFixed(2)}`,
+          total: `${totalAmount.toFixed(2)}`,
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: all_sales_return,
+          foot: footer,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Sales Return List", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+          footStyles: {
+            fillColor: [230, 230, 230], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
+        pdf.save("Sales Return.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      })
+      .catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("Sales Return.pdf");
     },
 
-      //----------------------------------------- Returns Purchase PDF -----------------------\\
     Returns_Purchase_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      axios.get("/report/get_purchase_return_by_product?page=1&limit=-1&search=" + self.search_return_purchases + "&id=" + self.$route.params.id)
+      .then(response => {
+        let all_purchases_return = response.data.purchases_return;
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let columns = [
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("product_name"), dataKey: "product_name" },
+          { title: self.$t("Supplier"), dataKey: "provider_name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+          { title: self.$t("Quantity"), dataKey: "quantity" },
+          { title: self.$t("SubTotal"), dataKey: "total" },
+        ];
 
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("product_name"), dataKey: "product_name" },
-        { title: self.$t("Supplier"), dataKey: "provider_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Quantity"), dataKey: "quantity" },
-        { title: self.$t("SubTotal"), dataKey: "total" },
-      ];
+        // Calculate totals
+        let totalQuantity = all_purchases_return.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        let totalAmount = all_purchases_return.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
 
-      pdf.autoTable({
-             columns: columns,
-             body: self.purchases_return,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Purchase Return List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+        let footer = [{
+          date: self.$t("Total"),
+          Ref: '',
+          product_name: '',
+          provider_name: '',
+          warehouse_name: '',
+          quantity: `${totalQuantity.toFixed(2)}`,
+          total: `${totalAmount.toFixed(2)}`,
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: all_purchases_return,
+          foot: footer,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Purchase Return List", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+          footStyles: {
+            fillColor: [230, 230, 230], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
+        pdf.save("purchase_returns.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      })
+      .catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("purchase_returns.pdf");
     },
 
-     //-------------------------------------- Transfer PDF ------------------------------\\
     Transfer_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      axios.get("report/get_transfer_by_product?page=1&limit=-1&search=" + self.search_transfers + "&id=" + self.$route.params.id)
+      .then(response => {
+        let all_transfers = response.data.transfers;
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let columns = [
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("product_name"), dataKey: "product_name" },
+          { title: self.$t("FromWarehouse"), dataKey: "from_warehouse" },
+          { title: self.$t("ToWarehouse"), dataKey: "to_warehouse" },
+        ];
 
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("product_name"), dataKey: "product_name" },
-        { title: self.$t("FromWarehouse"), dataKey: "from_warehouse" },
-        { title: self.$t("ToWarehouse"), dataKey: "to_warehouse" },
-      ];
-
-      pdf.autoTable({
-             columns: columns,
-             body: self.transfers,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Transfer List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+        pdf.autoTable({
+          columns: columns,
+          body: all_transfers,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Transfer List", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
+        pdf.save("Transfer_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      })
+      .catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("Transfer_List.pdf");
     },
 
-     //-------------------------------------- Adjustement PDF ------------------------------\\
     Adjustment_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      axios.get("report/get_adjustment_by_product?page=1&limit=-1&search=" + self.search_adjustments + "&id=" + self.$route.params.id)
+      .then(response => {
+        let all_adjustments = response.data.adjustments;
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let columns = [
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("product_name"), dataKey: "product_name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+        ];
 
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("product_name"), dataKey: "product_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-      ];
-
-      pdf.autoTable({
-             columns: columns,
-             body: self.adjustments,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Adjustment List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+        pdf.autoTable({
+          columns: columns,
+          body: all_adjustments,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Adjustment List", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
+        pdf.save("Adjustment_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      })
+      .catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("Adjustment_List.pdf");
     },
 
       //----------------------------------- Get Details Product ------------------------------\\

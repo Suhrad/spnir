@@ -31,19 +31,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Sales_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Sales_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="sales"
-              :columns="columns"
-              :file-name="'sales'"
-              :file-type="'xlsx'"
-              :sheet-name="'sales'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_sales"
+            :columns="columns"
+            :file-name="'sales'"
+            :file-type="'xlsx'"
+            :sheet-name="'sales'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
           <router-link
             class="btn-sm btn btn-primary ripple btn-icon m-1"
             v-if="currentUserPermissions && currentUserPermissions.includes('Sales_add')"
@@ -752,6 +757,9 @@ export default {
       payment_methods: [],
       shipment: {},
       sales: [],
+      excel_sales: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       sale_due:'',
       due:0,
       client_name:'',
@@ -1138,147 +1146,221 @@ export default {
     
     //----------------------------------- Sales PDF ------------------------------\\
     
+    fetch_all_sales() {
+      this.setToStrings();
+      return axios.get(
+        "sales?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&start_date=" +
+          this.Filter_start_date +
+          "&end_date=" +
+          this.Filter_end_date +
+          "&client_id=" +
+          this.Filter_Client +
+          "&statut=" +
+          this.Filter_status +
+          "&warehouse_id=" +
+          this.Filter_warehouse +
+          "&payment_statut=" +
+          this.Filter_Payment +
+          "&shipping_status=" +
+          this.Filter_shipping +
+          "&business_company_id=" +
+          this.Filter_BusinessCompany +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&search=" +
+          this.search +
+          "&limit=-1"
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_sales().then(response => {
+        let all_sales = response.data.sales;
+
+        // Calculate totals based on the complete list
+        let totalAmount = all_sales.reduce((sum, s) => sum + parseFloat(s.GrandTotal || 0), 0);
+        let totalPaid = all_sales.reduce((sum, s) => sum + parseFloat(s.paid_amount || 0), 0);
+        let totalDue = all_sales.reduce((sum, s) => sum + parseFloat(s.due || 0), 0);
+
+        // Append total row
+        all_sales.push({
+          date: 'Total',
+          Ref: '',
+          warehouse_name: '',
+          client_name: '',
+          statut: '',
+          GrandTotal: totalAmount.toFixed(2),
+          paid_amount: totalPaid.toFixed(2),
+          due: totalDue.toFixed(2),
+          payment_statut: '',
+          shipping_status: ''
+        });
+
+        this.excel_sales = all_sales;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     Sales_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
-
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
-
-      let columns = [
-        { title: "Date", dataKey: "date" },
-        { title: "Warehouse", dataKey: "warehouse_name" },
-        { title: "Party Name", dataKey: "party_details" },
-        { title: "Product", dataKey: "product_names" },
-        { title: "Items", dataKey: "item_quantities" },
-        { title: "Amount", dataKey: "GrandTotal" },
-      ];
-
-      let totalAmount = self.sales.reduce((sum, sale) => sum + parseFloat(sale.GrandTotal || 0), 0);
+      self.exporting_pdf = true;
+      NProgress.start();
       
-      // Calculate Total Items (Quantities)
-      let totalItems = 0;
-      self.sales.forEach(sale => {
-        if (sale.items) {
-           const parts = sale.items.split(', ');
-           parts.forEach(p => {
-             const m = p.match(/\(([^)]+)\)/);
-             if (m) totalItems += parseFloat(m[1]);
-           });
-        }
-      });
+      self.fetch_all_sales().then(response => {
+        let all_sales = response.data.sales;
 
-      let footer = [{
-        date: '',
-        warehouse_name: '',
-        party_details: '',
-        product_names: 'Total .....',
-        item_quantities: totalItems.toFixed(2),
-        GrandTotal: totalAmount.toFixed(2),
-      }];
+        let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      let formatted_sales = self.sales.map((sale, index) => {
-        // Warehouse Shortcut Mapping (uses dynamic shortcut from API)
-        let warehouseShortcut = sale.warehouse_shortcut || sale.warehouse_name || "";
+        let columns = [
+          { title: "Date", dataKey: "date" },
+          { title: "Warehouse", dataKey: "warehouse_name" },
+          { title: "Party Name", dataKey: "party_details" },
+          { title: "Product", dataKey: "product_names" },
+          { title: "Items", dataKey: "item_quantities" },
+          { title: "Amount", dataKey: "GrandTotal" },
+        ];
 
-        // Extract product names and quantities separately
-        let productNames = "";
-        let itemQtys = "";
+        let totalAmount = all_sales.reduce((sum, sale) => sum + parseFloat(sale.GrandTotal || 0), 0);
         
-        if (sale.items) {
-           const parts = sale.items.split(', ');
-           productNames = parts.map(p => p.split(' (')[0]).join(', ');
-           itemQtys = parts.map(p => {
-             const m = p.match(/\(([^)]+)\)/);
-             return m ? m[1] : '';
-           }).join(', ');
-        }
+        // Calculate Total Items (Quantities)
+        let totalItems = 0;
+        all_sales.forEach(sale => {
+          if (sale.items) {
+             const parts = sale.items.split(', ');
+             parts.forEach(p => {
+               const m = p.match(/\(([^)]+)\)/);
+               if (m) totalItems += parseFloat(m[1]);
+             });
+          }
+        });
 
-        return {
-          date: sale.date,
-          warehouse_name: warehouseShortcut,
-          party_details: sale.client_name + (sale.notes ? "\n" + sale.notes : ""),
-          product_names: productNames,
-          item_quantities: itemQtys,
-          GrandTotal: self.formatNumber(sale.GrandTotal, 2),
-        };
+        let footer = [{
+          date: '',
+          warehouse_name: '',
+          party_details: '',
+          product_names: 'Total .....',
+          item_quantities: totalItems.toFixed(2),
+          GrandTotal: totalAmount.toFixed(2),
+        }];
+
+        let formatted_sales = all_sales.map((sale, index) => {
+          // Warehouse Shortcut Mapping
+          let warehouseShortcut = sale.warehouse_shortcut || sale.warehouse_name || "";
+
+          // Extract product names and quantities separately
+          let productNames = "";
+          let itemQtys = "";
+          
+          if (sale.items) {
+             const parts = sale.items.split(', ');
+             productNames = parts.map(p => p.split(' (')[0]).join(', ');
+             itemQtys = parts.map(p => {
+               const m = p.match(/\(([^)]+)\)/);
+               return m ? m[1] : '';
+             }).join(', ');
+          }
+
+          return {
+            date: sale.date,
+            warehouse_name: warehouseShortcut,
+            party_details: sale.client_name + (sale.notes ? "\n" + sale.notes : ""),
+            product_names: productNames,
+            item_quantities: itemQtys,
+            GrandTotal: self.formatNumber(sale.GrandTotal, 2),
+          };
+        });
+
+        pdf.autoTable({
+          columns: columns,
+          body: formatted_sales,
+          foot: footer,
+          startY: 80,
+          theme: "grid", 
+          styles: {
+            font: "VazirmatnBold", 
+            fontSize: 9,
+            halign: "center",
+            cellPadding: 5,
+          },
+          columnStyles: {
+             warehouse_name: { cellWidth: 40, halign: 'center' },
+             party_details: { halign: 'left', cellWidth: 'auto' },
+             product_names: { halign: 'left', cellWidth: 120 },
+             item_quantities: { halign: 'center', cellWidth: 40 },
+             GrandTotal: { halign: 'right', cellWidth: 85, fontStyle: 'bold' },
+          },
+          headStyles: {
+            fillColor: [240, 240, 240], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
+            fontSize: 10,
+          },
+          footStyles: {
+            fillColor: [240, 240, 240], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
+            fontSize: 10,
+          },
+          didDrawPage: (data) => {
+             pdf.setFont("VazirmatnBold");
+             pdf.setFontSize(16);
+             pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+             pdf.setFontSize(14);
+             pdf.text("Sales List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+             
+             // Filter Info
+             pdf.setFontSize(10);
+             let filterText = [];
+             if (self.Filter_warehouse) {
+               const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
+               if (wh) filterText.push(`Warehouse: ${wh.name}`);
+             }
+             if (self.Filter_Client) {
+               const cl = self.customers.find(c => c.id == self.Filter_Client);
+               if (cl) filterText.push(`Customer: ${cl.name}`);
+             }
+             if (self.Filter_start_date && self.Filter_end_date) {
+                filterText.push(`Period: ${self.Filter_start_date} to ${self.Filter_end_date}`);
+              } else if (self.Filter_start_date) {
+                filterText.push(`From: ${self.Filter_start_date}`);
+              } else if (self.Filter_end_date) {
+                filterText.push(`To: ${self.Filter_end_date}`);
+              }
+
+             if (filterText.length > 0) {
+                pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
+             }
+          },
+        });
+
+        pdf.save("Sales_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.autoTable({
-        columns: columns,
-        body: formatted_sales,
-        foot: footer,
-        startY: 80,
-        theme: "grid", 
-        styles: {
-          font: "VazirmatnBold", 
-          fontSize: 9,
-          halign: "center",
-          cellPadding: 5,
-        },
-        columnStyles: {
-           warehouse_name: { cellWidth: 40, halign: 'center' },
-           party_details: { halign: 'left', cellWidth: 'auto' },
-           product_names: { halign: 'left', cellWidth: 120 },
-           item_quantities: { halign: 'center', cellWidth: 40 },
-           GrandTotal: { halign: 'right', cellWidth: 85, fontStyle: 'bold' },
-        },
-        headStyles: {
-          fillColor: [240, 240, 240], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
-          lineWidth: 0.5,
-          lineColor: [0, 0, 0],
-          fontSize: 10,
-        },
-        footStyles: {
-          fillColor: [240, 240, 240], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
-          lineWidth: 0.5,
-          lineColor: [0, 0, 0],
-          fontSize: 10,
-        },
-        didParseCell: function (data) {
-            if (data.column.dataKey === 'party_details' && data.cell.section === 'body') {
-                // We can't easily bold part of text in autotable, so we use a visual separator if needed
-                // But we'll keep it simple for now as per autotable limitations
-            }
-        },
-        didDrawPage: (data) => {
-           pdf.setFont("VazirmatnBold");
-           pdf.setFontSize(16);
-           pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
-           pdf.setFontSize(14);
-           pdf.text("Sales List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
-           
-           // Filter Info
-           pdf.setFontSize(10);
-           let filterText = [];
-           if (self.Filter_warehouse) {
-             const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
-             if (wh) filterText.push(`Warehouse: ${wh.name}`);
-           }
-           if (self.Filter_Client) {
-             const cl = self.customers.find(c => c.id == self.Filter_Client);
-             if (cl) filterText.push(`Customer: ${cl.name}`);
-           }
-           if (self.Filter_start_date && self.Filter_end_date) {
-              filterText.push(`Period: ${self.Filter_start_date} to ${self.Filter_end_date}`);
-            } else if (self.Filter_start_date) {
-              filterText.push(`From: ${self.Filter_start_date}`);
-            } else if (self.Filter_end_date) {
-              filterText.push(`To: ${self.Filter_end_date}`);
-            }
-
-           if (filterText.length > 0) {
-              pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
-           }
-        },
-      });
-
-      pdf.save("Sales_List.pdf");
     },
 
 
@@ -2019,7 +2101,7 @@ export default {
             });
         }
       });
-    }
+    },
   },
   //----------------------------- Created function-------------------\\
   created() {

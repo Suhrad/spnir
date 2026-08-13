@@ -87,6 +87,7 @@ class PosController extends BaseController
             $order->discount = $request->discount;
             $order->shipping = $request->shipping;
             $order->GrandTotal = $request->GrandTotal;
+            $order->round_amount = $request->round_amount ?? 0;
             $order->notes = $request->notes;
             $order->statut = 'completed';
             $order->payment_statut = 'unpaid';

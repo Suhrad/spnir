@@ -37,11 +37,13 @@
         enabled: true,
       }"
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         styleClass="table-hover tableOne vgt-table"
       >
         <div slot="table-actions" class="mt-2 mb-3">
@@ -49,19 +51,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Payment_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Payment_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="payments"
-              :columns="columns"
-              :file-name="'payments'"
-              :file-type="'xlsx'"
-              :sheet-name="'payments'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_payments"
+            :columns="columns"
+            :file-name="'payments'"
+            :file-type="'xlsx'"
+            :sheet-name="'payments'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
         </div>
       </vue-good-table>
     </b-card>
@@ -171,6 +178,9 @@ export default {
       Filter_return: "",
       Filter_Reg: "",
       payments: [],
+      excel_payments: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       clients: [],
       payment_methods:[],
       rows: [{
@@ -328,69 +338,132 @@ export default {
       }
     },
 
+    fetch_all_payments() {
+      this.get_data_loaded();
+      return axios.get(
+        "payment/returns_sale?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&client_id=" +
+          this.Filter_client +
+          "&sale_return_id=" +
+          this.Filter_return +
+          "&payment_method_id=" +
+          this.Filter_Reg +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&search=" +
+          this.search +
+          "&limit=-1" +
+          "&to=" +
+          this.endDate +
+          "&from=" +
+          this.startDate
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_payments().then(response => {
+        let all_payments = response.data.payments || [];
+
+        // Calculate totals based on the complete list
+        let totalAmount = all_payments.reduce((sum, item) => sum + parseFloat(item.montant || 0), 0);
+
+        // Append total row
+        all_payments.push({
+          date: 'Total',
+          Ref: '',
+          Ref_Return: '',
+          client_name: '',
+          payment_method: '',
+          montant: totalAmount.toFixed(2)
+        });
+
+        this.excel_payments = all_payments;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     //------------------------ Payments Sale Returns PDF -----------------------\\
     Payment_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
-
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
-
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("Return"), dataKey: "Ref_return" },
-        { title: self.$t("Customer"), dataKey: "client_name" },
-        { title: self.$t("ModePaiement"), dataKey: "payment_method" },
-        { title: self.$t("Account"), dataKey: "account_name" },
-        { title: self.$t("Amount"), dataKey: "montant" }
-      ];
+      self.exporting_pdf = true;
+      NProgress.start();
       
-    // Calculate totals
-     let totalGrandTotal = self.payments.reduce((sum, payment) => sum + parseFloat(payment.montant || 0), 0);
-     
-     let footer = [{
-       date: self.$t("Total"),
-       Ref: '',
-       Ref_return: '',
-       client_name: '',
-       payment_method: '',
-       account_name: '',
-       montant: `${totalGrandTotal.toFixed(2)}`,
-      
-     }];
+      self.fetch_all_payments().then(response => {
+        let all_payments = response.data.payments || [];
 
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-    pdf.autoTable({
-             columns: columns,
-             body: self.payments,
-             foot: footer,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Payments Sale Returns", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
-             footStyles: {
-               fillColor: [230, 230, 230], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
-    });
+        let columns = [
+          { title: "Date", dataKey: "date" },
+          { title: "Reference", dataKey: "Ref" },
+          { title: "Return", dataKey: "Ref_Return" },
+          { title: "Customer", dataKey: "client_name" },
+          { title: "Payment Method", dataKey: "payment_method" },
+          { title: "Amount", dataKey: "montant" },
+        ];
 
-    pdf.save("Payments_Sale_Returns.pdf");
+        // Calculate totals
+        let totalAmount = all_payments.reduce((sum, payment) => sum + parseFloat(payment.montant || 0), 0);
 
+        let footer = [{
+          date: "Total",
+          Ref: '',
+          Ref_Return: '',
+          client_name: '',
+          payment_method: '',
+          montant: `${totalAmount.toFixed(2)}`,
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: all_payments,
+          foot: footer,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Payments Sale Returns", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", // 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+          footStyles: {
+            fillColor: [230, 230, 230], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
+
+        pdf.save("Payments_Sale_Returns.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
+      });
     },
 
     //----------------------------- Submit Date Picker -------------------\\
@@ -405,14 +478,14 @@ export default {
     get_data_loaded() {
       var self = this;
       if (self.today_mode) {
-        let today = new Date()
+        let startDate = moment().startOf('month');
+        let endDate = moment().endOf('day');
 
-        self.startDate = today.getFullYear();
-        self.endDate = new Date().toJSON().slice(0, 10);
+        self.startDate = startDate.format("YYYY-MM-DD");
+        self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = today.getFullYear();
-        self.dateRange.endDate = new Date().toJSON().slice(0, 10);
-        
+        self.dateRange.startDate = startDate.toDate();
+        self.dateRange.endDate = endDate.toDate();
       }
     },
 

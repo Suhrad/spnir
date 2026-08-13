@@ -50,19 +50,24 @@
             <b-button size="sm" variant="outline-info" class="btn-pill mr-2" v-b-toggle.sidebar-right>
               <i class="i-Filter-2 mr-1"></i>{{$t('Filter')}}
             </b-button>
-            <b-button size="sm" variant="outline-success" class="btn-pill mr-2" @click="exportPDF">
-              <i class="i-File-Copy mr-1"></i>PDF
-            </b-button>
-            <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger btn-pill mr-2"
-              :data="payments"
-              :columns="excelColumns"
-              :file-name="'payments_purchases'"
-              :file-type="'xlsx'"
-              :sheet-name="'payments_purchases'"
-            >
-              <i class="i-File-Excel mr-1"></i>EXCEL
-            </vue-excel-xlsx>
+             <b-button size="sm" variant="outline-success" class="btn-pill mr-2" @click="exportPDF" :disabled="exporting_pdf">
+               <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+               <i v-else class="i-File-Copy mr-1"></i>PDF
+             </b-button>
+             <vue-excel-xlsx
+               ref="excel_btn"
+               style="display: none;"
+               :data="excel_payments"
+               :columns="excelColumns"
+               :file-name="'payments_purchases'"
+               :file-type="'xlsx'"
+               :sheet-name="'payments_purchases'"
+             />
+
+             <b-button size="sm" variant="outline-danger" class="btn-pill mr-2" @click="export_Excel" :disabled="exporting_excel">
+               <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+               <i v-else class="i-File-Excel mr-1"></i>EXCEL
+             </b-button>
             <b-button variant="primary" size="sm" class="btn-pill" @click="Payments_Purchases(1)">
               <i class="i-Reload mr-1"></i>{{$t('Refresh')}}
             </b-button>
@@ -105,7 +110,14 @@
           @on-sort-change="onSortChange"
           @on-search="onSearch"
           :search-options="{ placeholder: $t('Search_this_table'), enabled: true }"
-          :pagination-options="{ enabled: true, mode: 'records', nextLabel: 'next', prevLabel: 'prev' }"
+          :pagination-options="{
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
           styleClass="table-hover tableOne vgt-table mt-2"
         >
           <template slot="table-row" slot-scope="props">
@@ -338,8 +350,7 @@ export default {
 
   data() {
     const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - 29);
+    const start = new Date(end.getFullYear(), end.getMonth(), 1);
     return {
       isLoading: true,
 
@@ -351,6 +362,9 @@ export default {
 
       // data
       payments: [],
+      excel_payments: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       suppliers: [],
       purchases: [],
       payment_methods: [],
@@ -635,8 +649,61 @@ export default {
       return x ? (x.Ref || this.$t('All')) : this.$t('All');
     },
 
+    fetch_all_payments() {
+      const from = this.startDate || this.fmt(this.dateRange?.startDate);
+      const to   = this.endDate   || this.fmt(this.dateRange?.endDate);
+
+      const qs = new URLSearchParams({
+        page: '1',
+        limit: '-1',
+        SortField: this.serverParams?.sort?.field || 'id',
+        SortType:  this.serverParams?.sort?.type  || 'desc',
+        search: this.search || '',
+        from, to,
+        Ref: this.Filter_Ref || '',
+        provider_id: this.Filter_Supplier || '',
+        purchase_id: this.Filter_purchase || '',
+        payment_method_id: this.Filter_Reg || ''
+      }).toString();
+
+      return axios.get(`payment_purchase?${qs}`);
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_payments().then(response => {
+        let all_payments = response.data.payments || [];
+
+        // Calculate totals based on the complete list
+        let totalAmount = all_payments.reduce((sum, item) => sum + parseFloat(item.montant || 0), 0);
+
+        // Append total row
+        all_payments.push({
+          date: 'Total',
+          Ref: '',
+          Ref_Purchase: '',
+          provider_name: '',
+          payment_method: '',
+          account_name: '',
+          montant: totalAmount.toFixed(2)
+        });
+
+        this.excel_payments = all_payments;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     // --- Export PDF (Arabic-safe)
     async exportPDF(){
+      this.exporting_pdf = true;
       NProgress.start(); NProgress.set(0.2);
       try{
         const fmtLocal = (d) => {
@@ -753,6 +820,7 @@ export default {
         pdf.save(`payments_purchases_${from || 'all'}_${to || 'all'}.pdf`);
       } finally {
         NProgress.done();
+        this.exporting_pdf = false;
       }
     },
 

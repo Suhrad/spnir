@@ -25,19 +25,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Purchase_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Purchase_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="purchases"
-              :columns="columns"
-              :file-name="'purchases'"
-              :file-type="'xlsx'"
-              :sheet-name="'purchases'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_purchases"
+            :columns="columns"
+            :file-name="'purchases'"
+            :file-type="'xlsx'"
+            :sheet-name="'purchases'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
           <router-link
             class="btn-sm btn btn-primary ripple btn-icon m-1"
             v-if="currentUserPermissions && currentUserPermissions.includes('Purchases_add')"
@@ -431,6 +436,9 @@ export default {
       payment_methods: [],
       details: [],
       purchases: [],
+      excel_purchases: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       purchase: {},
       factures: [],
       accounts: [],
@@ -662,118 +670,194 @@ export default {
     },
 
     //---------------------- Purchases PDF -------------------------------\\
+    fetch_all_purchases() {
+      this.setToStrings();
+      return axios.get(
+        "purchases?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&start_date=" +
+          this.Filter_start_date +
+          "&end_date=" +
+          this.Filter_end_date +
+          "&provider_id=" +
+          this.Filter_Supplier +
+          "&statut=" +
+          this.Filter_status +
+          "&warehouse_id=" +
+          this.Filter_warehouse +
+          "&payment_statut=" +
+          this.Filter_Payment +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&search=" +
+          this.search +
+          "&limit=-1"
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_purchases().then(response => {
+        let all_purchases = response.data.purchases;
+
+        // Calculate totals based on the complete list
+        let totalAmount = all_purchases.reduce((sum, p) => sum + parseFloat(p.GrandTotal || 0), 0);
+        let totalPaid = all_purchases.reduce((sum, p) => sum + parseFloat(p.paid_amount || 0), 0);
+        let totalDue = all_purchases.reduce((sum, p) => sum + parseFloat(p.due || 0), 0);
+
+        // Append total row
+        all_purchases.push({
+          date: 'Total',
+          Ref: '',
+          warehouse_name: '',
+          provider_name: '',
+          statut: '',
+          GrandTotal: totalAmount.toFixed(2),
+          paid_amount: totalPaid.toFixed(2),
+          due: totalDue.toFixed(2),
+          payment_statut: ''
+        });
+
+        this.excel_purchases = all_purchases;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
+    //---------------------- Purchases PDF -------------------------------\\
     Purchase_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
-
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
-
-      let columns = [
-        { title: "Date", dataKey: "date" },
-        { title: "Warehouse", dataKey: "warehouse_name" },
-        { title: "Supplier Name", dataKey: "party_details" },
-        { title: "Product", dataKey: "product_names" },
-        { title: "Items", dataKey: "item_quantities" },
-        { title: "Amount", dataKey: "GrandTotal" },
-      ];
-
-      let totalAmount = self.purchases.reduce((sum, p) => sum + parseFloat(p.GrandTotal || 0), 0);
+      self.exporting_pdf = true;
+      NProgress.start();
       
-      // Calculate Total Items (Quantities)
-      let totalItems = 0;
-      self.purchases.forEach(p => {
-        if (p.items) {
-           const parts = p.items.split(', ');
-           parts.forEach(part => {
-             const m = part.match(/\(([^)]+)\)/);
-             if (m) totalItems += parseFloat(m[1]);
-           });
-        }
-      });
+      self.fetch_all_purchases().then(response => {
+        let all_purchases = response.data.purchases;
 
-      let footer = [{
-        date: '',
-        warehouse_name: '',
-        party_details: '',
-        product_names: 'Total .....',
-        item_quantities: totalItems.toFixed(2),
-        GrandTotal: totalAmount.toFixed(2),
-      }];
+        let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      let formatted_purchases = self.purchases.map((purchase, index) => {
-        // Warehouse Shortcut Mapping (uses dynamic shortcut from API)
-        let warehouseShortcut = purchase.warehouse_shortcut || purchase.warehouse_name || "";
+        let columns = [
+          { title: "Date", dataKey: "date" },
+          { title: "Warehouse", dataKey: "warehouse_name" },
+          { title: "Supplier Name", dataKey: "party_details" },
+          { title: "Product", dataKey: "product_names" },
+          { title: "Items", dataKey: "item_quantities" },
+          { title: "Amount", dataKey: "GrandTotal" },
+        ];
 
-        // Extract product names and quantities separately
-        let productNames = "";
-        let itemQtys = "";
+        let totalAmount = all_purchases.reduce((sum, p) => sum + parseFloat(p.GrandTotal || 0), 0);
         
-        if (purchase.items) {
-           const parts = purchase.items.split(', ');
-           productNames = parts.map(p => p.split(' (')[0]).join(', ');
-           itemQtys = parts.map(p => {
-             const m = p.match(/\(([^)]+)\)/);
-             return m ? m[1] : '';
-           }).join(', ');
-        }
+        // Calculate Total Items (Quantities)
+        let totalItems = 0;
+        all_purchases.forEach(p => {
+          if (p.items) {
+             const parts = p.items.split(', ');
+             parts.forEach(part => {
+               const m = part.match(/\(([^)]+)\)/);
+               if (m) totalItems += parseFloat(m[1]);
+             });
+          }
+        });
 
-        return {
-          date: purchase.date,
-          warehouse_name: warehouseShortcut,
-          party_details: purchase.provider_name + (purchase.notes ? "\n" + purchase.notes : ""),
-          product_names: productNames,
-          item_quantities: itemQtys,
-          GrandTotal: self.formatNumber(purchase.GrandTotal, 2),
-        };
+        let footer = [{
+          date: '',
+          warehouse_name: '',
+          party_details: '',
+          product_names: 'Total .....',
+          item_quantities: totalItems.toFixed(2),
+          GrandTotal: totalAmount.toFixed(2),
+        }];
+
+        let formatted_purchases = all_purchases.map((purchase, index) => {
+          // Warehouse Shortcut Mapping
+          let warehouseShortcut = purchase.warehouse_shortcut || purchase.warehouse_name || "";
+
+          // Extract product names and quantities separately
+          let productNames = "";
+          let itemQtys = "";
+          
+          if (purchase.items) {
+             const parts = purchase.items.split(', ');
+             productNames = parts.map(p => p.split(' (')[0]).join(', ');
+             itemQtys = parts.map(p => {
+               const m = p.match(/\(([^)]+)\)/);
+               return m ? m[1] : '';
+             }).join(', ');
+          }
+
+          return {
+            date: purchase.date,
+            warehouse_name: warehouseShortcut,
+            party_details: purchase.provider_name + (purchase.notes ? "\n" + purchase.notes : ""),
+            product_names: productNames,
+            item_quantities: itemQtys,
+            GrandTotal: self.formatNumber(purchase.GrandTotal, 2),
+          };
+        });
+
+        pdf.autoTable({
+          columns: columns,
+          body: formatted_purchases,
+          foot: footer,
+          startY: 80,
+          theme: "grid", 
+          styles: {
+            font: "VazirmatnBold", 
+            fontSize: 9,
+            halign: "center",
+            cellPadding: 5,
+          },
+          columnStyles: {
+             warehouse_name: { cellWidth: 40, halign: 'center' },
+             party_details: { halign: 'left', cellWidth: 'auto' },
+             product_names: { halign: 'left', cellWidth: 120 },
+             item_quantities: { halign: 'center', cellWidth: 40 },
+             GrandTotal: { halign: 'right', cellWidth: 85, fontStyle: 'bold' },
+          },
+          headStyles: {
+            fillColor: [240, 240, 240], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
+            fontSize: 10,
+          },
+          footStyles: {
+            fillColor: [240, 240, 240], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
+            fontSize: 10,
+          },
+          didDrawPage: (data) => {
+             pdf.setFont("VazirmatnBold");
+             pdf.setFontSize(16);
+             pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+             pdf.setFontSize(14);
+             pdf.text("Purchase List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+          },
+        });
+
+        pdf.save("Purchases_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.autoTable({
-        columns: columns,
-        body: formatted_purchases,
-        foot: footer,
-        startY: 80,
-        theme: "grid", 
-        styles: {
-          font: "VazirmatnBold", 
-          fontSize: 9,
-          halign: "center",
-          cellPadding: 5,
-        },
-        columnStyles: {
-           warehouse_name: { cellWidth: 40, halign: 'center' },
-           party_details: { halign: 'left', cellWidth: 'auto' },
-           product_names: { halign: 'left', cellWidth: 120 },
-           item_quantities: { halign: 'center', cellWidth: 40 },
-           GrandTotal: { halign: 'right', cellWidth: 85, fontStyle: 'bold' },
-        },
-        headStyles: {
-          fillColor: [240, 240, 240], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
-          lineWidth: 0.5,
-          lineColor: [0, 0, 0],
-          fontSize: 10,
-        },
-        footStyles: {
-          fillColor: [240, 240, 240], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
-          lineWidth: 0.5,
-          lineColor: [0, 0, 0],
-          fontSize: 10,
-        },
-        didDrawPage: (data) => {
-           pdf.setFont("VazirmatnBold");
-           pdf.setFontSize(16);
-           pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
-           pdf.setFontSize(14);
-           pdf.text("Purchase List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
-        },
-      });
-
-      pdf.save("Purchases_List.pdf");
     },
 
     onRowClick(params) {

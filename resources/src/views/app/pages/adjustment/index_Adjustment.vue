@@ -31,19 +31,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Adjustment_PDF()" size="sm" variant="outline-success m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Adjustment_PDF()" size="sm" variant="outline-success m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="adjustments"
-              :columns="columns"
-              :file-name="'Adjustments'"
-              :file-type="'xlsx'"
-              :sheet-name="'Adjustments'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_adjustments"
+            :columns="columns"
+            :file-name="'Adjustments'"
+            :file-type="'xlsx'"
+            :sheet-name="'Adjustments'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
           <router-link
             class="btn-sm btn btn-primary btn-icon m-1"
             v-if="currentUserPermissions && currentUserPermissions.includes('adjustment_add')"
@@ -227,6 +232,9 @@ export default {
       Filter_warehouse: "",
       warehouses: [],
       adjustments: [],
+      excel_adjustments: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       details: [],
       adjustment: {}
     };
@@ -316,252 +324,315 @@ export default {
     },
 
     //-------------------------------------- Adjustement PDF (Production List) ------------------------------\\
+    fetch_all_adjustments() {
+      this.setToStrings();
+      return axios.get(
+        "adjustments?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&warehouse_id=" +
+          this.Filter_warehouse +
+          "&date=" +
+          this.Filter_date +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&search=" +
+          this.search +
+          "&limit=-1"
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_adjustments().then(response => {
+        let all_adjustments = response.data.adjustments;
+
+        // Calculate totals based on the complete list
+        let totalSubQty = all_adjustments.reduce((sum, adj) => sum + parseFloat(adj.sub_qty || 0), 0);
+        let totalAddQty = all_adjustments.reduce((sum, adj) => sum + parseFloat(adj.add_qty || 0), 0);
+
+        // Append total row
+        all_adjustments.push({
+          date: 'Total',
+          warehouse_name: '',
+          sub_items: '',
+          sub_qty: totalSubQty.toFixed(2),
+          add_items: '',
+          add_qty: totalAddQty.toFixed(2)
+        });
+
+        this.excel_adjustments = all_adjustments;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
+    //-------------------------------------- Adjustement PDF (Production List) ------------------------------\\
     Adjustment_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+      self.exporting_pdf = true;
+      NProgress.start();
+      
+      self.fetch_all_adjustments().then(response => {
+        let all_adjustments = response.data.adjustments;
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      const parseItems = (itemsStr) => {
-        if (!itemsStr || itemsStr === '---') return [];
-        const items = [];
-        const parts = itemsStr.split(', ');
-        parts.forEach(p => {
-          const lastOpenParen = p.lastIndexOf(' (');
-          if (lastOpenParen !== -1) {
-            const name = p.substring(0, lastOpenParen).trim();
-            const qtyStr = p.substring(lastOpenParen + 2, p.length - 1);
-            const qty = parseFloat(qtyStr) || 0;
-            items.push({ name, qty });
-          } else {
-            items.push({ name: p.trim(), qty: 0 });
-          }
-        });
-        return items;
-      };
+        const parseItems = (itemsStr) => {
+          if (!itemsStr || itemsStr === '---') return [];
+          const items = [];
+          const parts = itemsStr.split(', ');
+          parts.forEach(p => {
+            const lastOpenParen = p.lastIndexOf(' (');
+            if (lastOpenParen !== -1) {
+              const name = p.substring(0, lastOpenParen).trim();
+              const qtyStr = p.substring(lastOpenParen + 2, p.length - 1);
+              const qty = parseFloat(qtyStr) || 0;
+              items.push({ name, qty });
+            } else {
+              items.push({ name: p.trim(), qty: 0 });
+            }
+          });
+          return items;
+        };
 
-      const formatQty = (value) => {
-        if (value === undefined || value === null || isNaN(value)) return "0.000";
-        return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-      };
+        const formatQty = (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "0.000";
+          return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+        };
 
-      let body_rows = [];
-      let grand_total_consumption = 0;
-      let grand_total_production = 0;
-      let summary_map = {};
+        let body_rows = [];
+        let grand_total_consumption = 0;
+        let grand_total_production = 0;
+        let summary_map = {};
 
-      self.adjustments.forEach((adj, idx) => {
-        let consumptions = parseItems(adj.sub_items);
-        let productions = parseItems(adj.add_items);
-        let max_rows = Math.max(consumptions.length, productions.length);
+        all_adjustments.forEach((adj, idx) => {
+          let consumptions = parseItems(adj.sub_items);
+          let productions = parseItems(adj.add_items);
+          let max_rows = Math.max(consumptions.length, productions.length);
 
-        for (let i = 0; i < max_rows; i++) {
-          let vou_no = (i === 0) ? (idx + 1) : "";
-          let date = (i === 0) ? (adj.date ? adj.date.split(' ')[0] : "") : "";
-          
-          let con_item = "";
-          let con_qty = "";
-          if (i < consumptions.length) {
-            con_item = consumptions[i].name;
-            con_qty = formatQty(consumptions[i].qty);
+          for (let i = 0; i < max_rows; i++) {
+            let vou_no = (i === 0) ? (idx + 1) : "";
+            let date = (i === 0) ? (adj.date ? adj.date.split(' ')[0] : "") : "";
             
-            // Add to summary
-            if (!summary_map[con_item]) {
-              summary_map[con_item] = { name: con_item, input_qty: 0, output_qty: 0 };
+            let con_item = "";
+            let con_qty = "";
+            if (i < consumptions.length) {
+              con_item = consumptions[i].name;
+              con_qty = formatQty(consumptions[i].qty);
+              
+              // Add to summary
+              if (!summary_map[con_item]) {
+                summary_map[con_item] = { name: con_item, input_qty: 0, output_qty: 0 };
+              }
+              summary_map[con_item].input_qty += consumptions[i].qty;
             }
-            summary_map[con_item].input_qty += consumptions[i].qty;
+
+            let prod_item = "";
+            let prod_qty = "";
+            if (i < productions.length) {
+              prod_item = productions[i].name;
+              prod_qty = formatQty(productions[i].qty);
+
+              // Add to summary
+              if (!summary_map[prod_item]) {
+                summary_map[prod_item] = { name: prod_item, input_qty: 0, output_qty: 0 };
+              }
+              summary_map[prod_item].output_qty += productions[i].qty;
+            }
+
+            body_rows.push([vou_no, date, con_item, con_qty, prod_item, prod_qty]);
           }
 
-          let prod_item = "";
-          let prod_qty = "";
-          if (i < productions.length) {
-            prod_item = productions[i].name;
-            prod_qty = formatQty(productions[i].qty);
+          // Sub Total row
+          let sub_con_qty = adj.sub_qty || 0;
+          let sub_prod_qty = adj.add_qty || 0;
+          body_rows.push([
+            "",
+            "",
+            "Sub Total....",
+            formatQty(sub_con_qty),
+            "",
+            formatQty(sub_prod_qty)
+          ]);
 
-            // Add to summary
-            if (!summary_map[prod_item]) {
-              summary_map[prod_item] = { name: prod_item, input_qty: 0, output_qty: 0 };
-            }
-            summary_map[prod_item].output_qty += productions[i].qty;
-          }
+          grand_total_consumption += sub_con_qty;
+          grand_total_production += sub_prod_qty;
+        });
 
-          body_rows.push([vou_no, date, con_item, con_qty, prod_item, prod_qty]);
-        }
-
-        // Sub Total row
-        let sub_con_qty = adj.sub_qty || 0;
-        let sub_prod_qty = adj.add_qty || 0;
+        // Grand Total row
         body_rows.push([
           "",
           "",
-          "Sub Total....",
-          formatQty(sub_con_qty),
+          "Grand Total....",
+          formatQty(grand_total_consumption),
           "",
-          formatQty(sub_prod_qty)
+          formatQty(grand_total_production)
         ]);
 
-        grand_total_consumption += sub_con_qty;
-        grand_total_production += sub_prod_qty;
-      });
+        let head = [
+          [
+            { content: "Vou No.", rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: "Date", rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: "Consumption", colSpan: 2, styles: { halign: 'center' } },
+            { content: "Production", colSpan: 2, styles: { halign: 'center' } }
+          ],
+          [
+            { content: "Item Name", styles: { halign: 'center' } },
+            { content: "Qty", styles: { halign: 'center' } },
+            { content: "Item Name", styles: { halign: 'center' } },
+            { content: "Qty", styles: { halign: 'center' } }
+          ]
+        ];
 
-      // Grand Total row
-      body_rows.push([
-        "",
-        "",
-        "Grand Total....",
-        formatQty(grand_total_consumption),
-        "",
-        formatQty(grand_total_production)
-      ]);
+        pdf.autoTable({
+          head: head,
+          body: body_rows,
+          startY: 80,
+          margin: { top: 80, bottom: 40, left: 40, right: 40 },
+          theme: "grid",
+          styles: {
+            font: "VazirmatnBold",
+            fontSize: 9,
+            cellPadding: 4,
+            lineColor: [0, 0, 0],
+            lineWidth: 0.5,
+          },
+          columnStyles: {
+            0: { cellWidth: 40, halign: 'center' },
+            1: { cellWidth: 70, halign: 'center' },
+            2: { halign: 'left' },
+            3: { cellWidth: 80, halign: 'right' },
+            4: { halign: 'left' },
+            5: { cellWidth: 80, halign: 'right' },
+          },
+          headStyles: {
+            fillColor: [240, 240, 240],
+            textColor: [0, 0, 0],
+            fontStyle: "bold",
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
+          },
+          didParseCell: (data) => {
+            if (data.row.section === 'body') {
+              const rowData = data.row.raw;
+              const isSubTotal = rowData[2] === "Sub Total....";
+              const isGrandTotal = rowData[2] === "Grand Total....";
+              if (isSubTotal || isGrandTotal) {
+                data.cell.styles.fontStyle = 'bold';
+              }
+            }
+          },
+          didDrawPage: (data) => {
+             pdf.setFont("VazirmatnBold");
+             pdf.setFontSize(16);
+             pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+             pdf.setFontSize(14);
+             pdf.text("Production List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+             
+             // Filter Info
+             pdf.setFontSize(10);
+             let filterText = [];
+             if (self.Filter_warehouse) {
+               const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
+               if (wh) filterText.push(`Warehouse: ${wh.name}`);
+             }
+             if (self.Filter_date) {
+               filterText.push(`Date: ${self.Filter_date}`);
+             }
 
-      let head = [
-        [
-          { content: "Vou No.", rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: "Date", rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: "Consumption", colSpan: 2, styles: { halign: 'center' } },
-          { content: "Production", colSpan: 2, styles: { halign: 'center' } }
-        ],
-        [
-          { content: "Item Name", styles: { halign: 'center' } },
-          { content: "Qty", styles: { halign: 'center' } },
-          { content: "Item Name", styles: { halign: 'center' } },
-          { content: "Qty", styles: { halign: 'center' } }
-        ]
-      ];
+             if (filterText.length > 0) {
+                pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
+             }
+          },
+        });
 
-      pdf.autoTable({
-        head: head,
-        body: body_rows,
-        startY: 80,
-        margin: { top: 80, bottom: 40, left: 40, right: 40 },
-        theme: "grid",
-        styles: {
-          font: "VazirmatnBold",
-          fontSize: 9,
-          cellPadding: 4,
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5,
-        },
-        columnStyles: {
-          0: { cellWidth: 40, halign: 'center' },
-          1: { cellWidth: 70, halign: 'center' },
-          2: { halign: 'left' },
-          3: { cellWidth: 80, halign: 'right' },
-          4: { halign: 'left' },
-          5: { cellWidth: 80, halign: 'right' },
-        },
-        headStyles: {
-          fillColor: [240, 240, 240],
-          textColor: [0, 0, 0],
-          fontStyle: "bold",
-          lineWidth: 0.5,
-          lineColor: [0, 0, 0],
-        },
-        didParseCell: (data) => {
-          if (data.row.section === 'body') {
-            const rowData = data.row.raw;
-            const isSubTotal = rowData[2] === "Sub Total....";
-            const isGrandTotal = rowData[2] === "Grand Total....";
-            if (isSubTotal || isGrandTotal) {
-              data.cell.styles.fontStyle = 'bold';
+        // Production Summary Table
+        let summaryStartY = pdf.lastAutoTable.finalY + 35;
+        let summary_list = Object.values(summary_map);
+        summary_list.sort((a, b) => a.name.localeCompare(b.name));
+
+        let summary_rows = [];
+        summary_list.forEach((item, s_idx) => {
+          let sr_no = s_idx + 1;
+          let item_name = item.name;
+          let input_qty = item.input_qty > 0 ? formatQty(item.input_qty) : "";
+          let output_qty = item.output_qty > 0 ? formatQty(item.output_qty) : "";
+          summary_rows.push([sr_no, item_name, input_qty, output_qty]);
+        });
+
+        summary_rows.push([
+          { content: "Grand Total...", colSpan: 2, styles: { fontStyle: 'bold' } },
+          formatQty(grand_total_consumption),
+          formatQty(grand_total_production)
+        ]);
+
+        let summary_head = [
+          [
+            { content: "Production Summary", colSpan: 4, styles: { halign: 'center', fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 11 } }
+          ],
+          [
+            { content: "Sr No.", styles: { halign: 'center' } },
+            { content: "Item Name", styles: { halign: 'center' } },
+            { content: "Input Qty", styles: { halign: 'center' } },
+            { content: "Output Qty", styles: { halign: 'center' } }
+          ]
+        ];
+
+        pdf.autoTable({
+          head: summary_head,
+          body: summary_rows,
+          startY: summaryStartY,
+          margin: { top: 80, bottom: 40, left: 40, right: 40 },
+          theme: "grid",
+          styles: {
+            font: "VazirmatnBold",
+            fontSize: 9,
+            cellPadding: 4,
+            lineColor: [0, 0, 0],
+            lineWidth: 0.5,
+          },
+          columnStyles: {
+            0: { cellWidth: 50, halign: 'center' },
+            1: { halign: 'left' },
+            2: { cellWidth: 100, halign: 'right' },
+            3: { cellWidth: 100, halign: 'right' },
+          },
+          headStyles: {
+            fillColor: [240, 240, 240],
+            textColor: [0, 0, 0],
+            fontStyle: "bold",
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
+          },
+          didParseCell: (data) => {
+            if (data.row.section === 'body') {
+              if (data.row.index === summary_rows.length - 1) {
+                data.cell.styles.fontStyle = 'bold';
+              }
             }
           }
-        },
-        didDrawPage: (data) => {
-           pdf.setFont("VazirmatnBold");
-           pdf.setFontSize(16);
-           pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
-           pdf.setFontSize(14);
-           pdf.text("Production List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
-           
-           // Filter Info
-           pdf.setFontSize(10);
-           let filterText = [];
-           if (self.Filter_warehouse) {
-             const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
-             if (wh) filterText.push(`Warehouse: ${wh.name}`);
-           }
-           if (self.Filter_date) {
-             filterText.push(`Date: ${self.Filter_date}`);
-           }
+        });
 
-           if (filterText.length > 0) {
-              pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
-           }
-        },
+        pdf.save("Production_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      // Production Summary Table
-      let summaryStartY = pdf.lastAutoTable.finalY + 35;
-      let summary_list = Object.values(summary_map);
-      summary_list.sort((a, b) => a.name.localeCompare(b.name));
-
-      let summary_rows = [];
-      summary_list.forEach((item, s_idx) => {
-        let sr_no = s_idx + 1;
-        let item_name = item.name;
-        let input_qty = item.input_qty > 0 ? formatQty(item.input_qty) : "";
-        let output_qty = item.output_qty > 0 ? formatQty(item.output_qty) : "";
-        summary_rows.push([sr_no, item_name, input_qty, output_qty]);
-      });
-
-      summary_rows.push([
-        { content: "Grand Total...", colSpan: 2, styles: { fontStyle: 'bold' } },
-        formatQty(grand_total_consumption),
-        formatQty(grand_total_production)
-      ]);
-
-      let summary_head = [
-        [
-          { content: "Production Summary", colSpan: 4, styles: { halign: 'center', fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 11 } }
-        ],
-        [
-          { content: "Sr No.", styles: { halign: 'center' } },
-          { content: "Item Name", styles: { halign: 'center' } },
-          { content: "Input Qty", styles: { halign: 'center' } },
-          { content: "Output Qty", styles: { halign: 'center' } }
-        ]
-      ];
-
-      pdf.autoTable({
-        head: summary_head,
-        body: summary_rows,
-        startY: summaryStartY,
-        margin: { top: 80, bottom: 40, left: 40, right: 40 },
-        theme: "grid",
-        styles: {
-          font: "VazirmatnBold",
-          fontSize: 9,
-          cellPadding: 4,
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5,
-        },
-        columnStyles: {
-          0: { cellWidth: 50, halign: 'center' },
-          1: { halign: 'left' },
-          2: { cellWidth: 100, halign: 'right' },
-          3: { cellWidth: 100, halign: 'right' },
-        },
-        headStyles: {
-          fillColor: [240, 240, 240],
-          textColor: [0, 0, 0],
-          fontStyle: "bold",
-          lineWidth: 0.5,
-          lineColor: [0, 0, 0],
-        },
-        didParseCell: (data) => {
-          if (data.row.section === 'body') {
-            if (data.row.index === summary_rows.length - 1) {
-              data.cell.styles.fontStyle = 'bold';
-            }
-          }
-        }
-      });
-
-      pdf.save("Production_List.pdf");
-
     },
 
     //---------------Get Details Adjustement ----------------------\\

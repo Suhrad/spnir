@@ -110,7 +110,14 @@
           :columns="columns"
           :totalRows="totalRows"
           styleClass="tableOne table-hover vgt-table"
-          :pagination-options="{enabled:true, mode:'records'}"
+          :pagination-options="{
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
           :search-options="{enabled:true, placeholder:$t('Search_this_table')}"
           @on-page-change="onPageChange"
           @on-per-page-change="onPerPageChange"

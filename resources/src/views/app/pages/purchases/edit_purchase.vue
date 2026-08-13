@@ -891,7 +891,7 @@ export default {
         this.total = parseFloat((this.total + detail.subtotal).toFixed(2));
       }
 
-      this.GrandTotal = parseFloat(this.total.toFixed(2));
+      this.GrandTotal = Math.round(this.total);
     },
 
     //-----------------------------------Delete Detail Product ------------------------------\\

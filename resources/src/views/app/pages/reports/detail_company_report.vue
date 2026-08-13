@@ -115,11 +115,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: limit_sales
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
@@ -162,11 +164,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: limit_purchases
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
@@ -209,11 +213,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: limit_quotations
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
@@ -250,11 +256,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: limit_sales_returns
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
@@ -298,11 +306,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: limit_purchase_returns
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
@@ -346,11 +356,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: limit_receipts
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
@@ -376,11 +388,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: limit_payments
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
@@ -629,12 +643,10 @@ export default {
 
   methods: {
     formatNumber(number, dec) {
-      const value = (typeof number === "string" ? number : number.toString()).split(".");
-      if (dec <= 0) return value[0];
-      let formated = value[1] || "";
-      if (formated.length > dec) return `${value[0]}.${formated.substr(0, dec)}`;
-      while (formated.length < dec) formated += "0";
-      return `${value[0]}.${formated}`;
+      if (number === undefined || number === null) return "0.00";
+      let num = parseFloat(number);
+      if (isNaN(num)) num = 0;
+      return num.toFixed(dec);
     },
 
     tabChanged(tabIndex) {

@@ -1428,12 +1428,12 @@ const baseRoutes = [
                     },
 
                       {
-                        name: "report_sales_by_brand",
-                        path: "report_sales_by_brand",
+                        name: "sales_item_summary",
+                        path: "sales_item_summary",
                         component: () =>
                             import(
-                                /* webpackChunkName: "report_sales_by_brand" */
-                                "./views/app/pages/reports/report_sales_by_brand"
+                                /* webpackChunkName: "sales_item_summary" */
+                                "./views/app/pages/reports/sales_item_summary"
                             )
                     },
 

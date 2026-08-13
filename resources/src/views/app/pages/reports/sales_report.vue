@@ -36,11 +36,13 @@
         enabled: true,
       }"
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         :styleClass="'mt-5 order-table vgt-table'"
       >
         <div slot="table-actions" class="mt-2 mb-3">
@@ -48,19 +50,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Sales_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Sales_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
-           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="sales"
-              :columns="columns"
-              :file-name="'sales_report'"
-              :file-type="'xlsx'"
-              :sheet-name="'sales_report'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+          <vue-excel-xlsx
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_sales"
+            :columns="columns"
+            :file-name="'sales_report'"
+            :file-type="'xlsx'"
+            :sheet-name="'sales_report'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
         </div>
 
         <template slot="table-row" slot-scope="props">
@@ -271,6 +278,9 @@ components: { DateRangePicker },
           ],
       },],
       sales: [],
+      excel_sales: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       today_mode: true,
       to: "",
       from: "",
@@ -417,134 +427,222 @@ components: { DateRangePicker },
       return `${value[0]}.${formated}`;
     },
 
+    fetch_all_sales() {
+      this.setToStrings();
+      this.get_data_loaded();
+      return axios.get(
+        "/report/sales?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&client_id=" +
+          this.Filter_Client +
+          "&warehouse_id=" +
+          this.Filter_warehouse +
+          "&user_id=" +
+          this.Filter_seller +
+          "&product_id=" +
+          this.Filter_product +
+          "&category_id=" +
+          this.Filter_category +
+          "&statut=" +
+          this.Filter_status +
+          "&payment_statut=" +
+          this.Filter_Payment +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&search=" +
+          this.search +
+          "&limit=-1" +
+          "&to=" +
+          this.endDate +
+          "&from=" +
+          this.startDate
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      NProgress.set(0.1);
+      this.fetch_all_sales().then(response => {
+        let all_sales = response.data.sales.map(sale => {
+          return {
+            ...sale,
+            tax_amount: parseFloat(sale.cgst_amount || 0) + parseFloat(sale.sgst_amount || 0) + parseFloat(sale.igst_amount || 0)
+          };
+        });
+
+        // Calculate totals based on the complete list
+        let totalBillAmount = all_sales.reduce((sum, sale) => sum + parseFloat(sale.GrandTotal || 0), 0);
+
+        // Append total row
+        all_sales.push({
+          date: 'Total',
+          Ref: '',
+          client_name: '',
+          items: '',
+          GrandTotal: totalBillAmount.toFixed(2)
+        });
+
+        this.excel_sales = all_sales;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     //----------------------------------- Sales PDF ------------------------------\\
     Sales_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+      self.exporting_pdf = true;
+      NProgress.start();
+      NProgress.set(0.1);
+      
+      self.fetch_all_sales().then(response => {
+        let all_sales = response.data.sales.map(sale => {
+          return {
+            ...sale,
+            tax_amount: parseFloat(sale.cgst_amount || 0) + parseFloat(sale.sgst_amount || 0) + parseFloat(sale.igst_amount || 0)
+          };
+        });
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      let columns = [
-        { title: "Date", dataKey: "date" },
-        { title: "Warehouse", dataKey: "warehouse_name" },
-        { title: "Party Name", dataKey: "party_details" },
-        { title: "Product", dataKey: "product_names" },
-        { title: "Items", dataKey: "item_quantities" },
-        { title: "Amount", dataKey: "GrandTotal" },
-      ];
+        let columns = [
+          { title: "Date", dataKey: "date" },
+          { title: "Warehouse", dataKey: "warehouse_name" },
+          { title: "Party Name", dataKey: "party_details" },
+          { title: "Product", dataKey: "product_names" },
+          { title: "Items", dataKey: "item_quantities" },
+          { title: "Amount", dataKey: "GrandTotal" },
+        ];
 
-      let formatted_sales = self.sales.map((sale, index) => {
-        // Warehouse Shortcut Mapping (uses dynamic shortcut from API)
-        let warehouseShortcut = sale.warehouse_shortcut || sale.warehouse_name || "";
+        let formatted_sales = all_sales.map((sale, index) => {
+          // Warehouse Shortcut Mapping (uses dynamic shortcut from API)
+          let warehouseShortcut = sale.warehouse_shortcut || sale.warehouse_name || "";
 
-        let productNames = "";
-        let itemQtys = "";
-        
-        if (sale.items) {
-           const parts = sale.items.split(', ');
-           productNames = parts.map(p => p.split(' (')[0]).join(', ');
-           itemQtys = parts.map(p => {
-             const m = p.match(/\(([^)]+)\)/);
-             return m ? m[1] : '';
-           }).join(', ');
-        }
+          let productNames = "";
+          let itemQtys = "";
+          
+          if (sale.items) {
+             const parts = sale.items.split(', ');
+             productNames = parts.map(p => p.split(' (')[0]).join(', ');
+             itemQtys = parts.map(p => {
+               const m = p.match(/\(([^)]+)\)/);
+               return m ? m[1] : '';
+             }).join(', ');
+          }
 
-        return {
-          date: sale.date,
-          warehouse_name: warehouseShortcut,
-          party_details: `${sale.client_name}${sale.notes ? '\nNote: ' + sale.notes : ''}`,
-          product_names: productNames,
-          item_quantities: itemQtys,
-          GrandTotal: sale.GrandTotal || "0.00",
-        };
+          return {
+            date: sale.date,
+            warehouse_name: warehouseShortcut,
+            party_details: `${sale.client_name}${sale.notes ? '\nNote: ' + sale.notes : ''}`,
+            product_names: productNames,
+            item_quantities: itemQtys,
+            GrandTotal: sale.GrandTotal || "0.00",
+          };
+        });
+
+         // Calculate totals
+        let totalBillAmount = all_sales.reduce((sum, sale) => sum + parseFloat(sale.GrandTotal || 0), 0);
+
+        // Calculate Total Items (Quantities)
+        let totalItems = 0;
+        all_sales.forEach(sale => {
+          if (sale.items) {
+             const parts = sale.items.split(', ');
+             parts.forEach(p => {
+               const m = p.match(/\(([^)]+)\)/);
+               if (m) totalItems += parseFloat(m[1]);
+             });
+          }
+        });
+
+        let footer = [{
+          date: '',
+          warehouse_name: '',
+          party_details: '',
+          product_names: 'Total .....',
+          item_quantities: `${totalItems.toFixed(2)}`,
+          GrandTotal: `${totalBillAmount.toFixed(2)}`,
+        }];
+
+        pdf.autoTable({
+               columns: columns,
+               body: formatted_sales,
+               foot: footer,
+               startY: 80,
+               theme: "grid", 
+               styles: {
+                 font: "VazirmatnBold", 
+                 fontSize: 11,
+                 halign: "center",
+               },
+               columnStyles: {
+                  warehouse_name: { cellWidth: 45 },
+                  party_details: { halign: 'left', cellWidth: 'auto' },
+                  product_names: { halign: 'left', cellWidth: 100 },
+                  item_quantities: { halign: 'center', cellWidth: 50 },
+                  GrandTotal: { halign: 'right', cellWidth: 70 },
+               },
+               didDrawPage: (data) => {
+                  pdf.setFont("VazirmatnBold");
+                  pdf.setFontSize(16);
+                  pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+                  pdf.setFontSize(14);
+                  pdf.text("Sales List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+                  
+                  // Filter Info
+                  pdf.setFontSize(10);
+                  let filterText = [];
+                  if (self.Filter_warehouse) {
+                    const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
+                    if (wh) filterText.push(`Warehouse: ${wh.name}`);
+                  }
+                  if (self.Filter_Client) {
+                    const cl = self.customers.find(c => c.id == self.Filter_Client);
+                    if (cl) filterText.push(`Customer: ${cl.name}`);
+                  }
+                  
+                  filterText.push(`Period: ${self.startDate} to ${self.endDate}`);
+
+                  if (filterText.length > 0) {
+                     pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
+                  }
+               },
+               headStyles: {
+                 fillColor: [242, 242, 242], 
+                 textColor: [0, 0, 0], 
+                 fontStyle: "bold", 
+                 lineWidth: 0.5,
+                 lineColor: [0, 0, 0],
+               },
+               footStyles: {
+                 fillColor: [242, 242, 242], 
+                 textColor: [0, 0, 0], 
+                 fontStyle: "bold", 
+                 lineWidth: 0.5, 
+                 lineColor: [0, 0, 0],
+               },
+        });
+
+        pdf.save("Sales_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-       // Calculate totals
-      let totalBillAmount = self.sales.reduce((sum, sale) => sum + parseFloat(sale.GrandTotal || 0), 0);
-
-      // Calculate Total Items (Quantities)
-      let totalItems = 0;
-      self.sales.forEach(sale => {
-        if (sale.items) {
-           const parts = sale.items.split(', ');
-           parts.forEach(p => {
-             const m = p.match(/\(([^)]+)\)/);
-             if (m) totalItems += parseFloat(m[1]);
-           });
-        }
-      });
-
-      let footer = [{
-        date: '',
-        warehouse_name: '',
-        party_details: '',
-        product_names: 'Total .....',
-        item_quantities: `${totalItems.toFixed(2)}`,
-        GrandTotal: `${totalBillAmount.toFixed(2)}`,
-      }];
-
-      pdf.autoTable({
-             columns: columns,
-             body: formatted_sales,
-             foot: footer,
-             startY: 80,
-             theme: "grid", 
-             styles: {
-               font: "VazirmatnBold", 
-               fontSize: 11,
-               halign: "center",
-             },
-             columnStyles: {
-                warehouse_name: { cellWidth: 45 },
-                party_details: { halign: 'left', cellWidth: 'auto' },
-                product_names: { halign: 'left', cellWidth: 100 },
-                item_quantities: { halign: 'center', cellWidth: 50 },
-                GrandTotal: { halign: 'right', cellWidth: 70 },
-             },
-             didDrawPage: (data) => {
-                pdf.setFont("VazirmatnBold");
-                pdf.setFontSize(16);
-                pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
-                pdf.setFontSize(14);
-                pdf.text("Sales List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
-                
-                // Filter Info
-                pdf.setFontSize(10);
-                let filterText = [];
-                if (self.Filter_warehouse) {
-                  const wh = self.warehouses.find(w => w.id == self.Filter_warehouse);
-                  if (wh) filterText.push(`Warehouse: ${wh.name}`);
-                }
-                if (self.Filter_Client) {
-                  const cl = self.customers.find(c => c.id == self.Filter_Client);
-                  if (cl) filterText.push(`Customer: ${cl.name}`);
-                }
-                
-                filterText.push(`Period: ${self.startDate} to ${self.endDate}`);
-
-                if (filterText.length > 0) {
-                   pdf.text(filterText.join(" | "), pdf.internal.pageSize.width / 2, 65, { align: 'center' });
-                }
-             },
-             headStyles: {
-               fillColor: [242, 242, 242], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-               lineWidth: 0.5,
-               lineColor: [0, 0, 0],
-             },
-             footStyles: {
-               fillColor: [242, 242, 242], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-               lineWidth: 0.5, 
-               lineColor: [0, 0, 0],
-             },
-      });
-
-      pdf.save("Sales_List.pdf");
     },
 
     //---------------------------------------- Set To Strings-------------------------\\
@@ -579,14 +677,14 @@ components: { DateRangePicker },
     get_data_loaded() {
       var self = this;
       if (self.today_mode) {
-        let startDate = new Date("01/01/2000");  // Set start date to "01/01/2000"
-        let endDate = new Date();  // Set end date to current date
+        let startDate = moment().startOf('month');
+        let endDate = moment().endOf('day');
 
-        self.startDate = startDate.toISOString();
-        self.endDate = endDate.toISOString();
+        self.startDate = startDate.format("YYYY-MM-DD");
+        self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = startDate.toISOString();
-        self.dateRange.endDate = endDate.toISOString();
+        self.dateRange.startDate = startDate.toDate();
+        self.dateRange.endDate = endDate.toDate();
       }
     },
 

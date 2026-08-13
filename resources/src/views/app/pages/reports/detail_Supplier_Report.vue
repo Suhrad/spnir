@@ -70,11 +70,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
                <div slot="table-actions" class="mt-2 mb-3">
@@ -131,11 +133,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
                <div slot="table-actions" class="mt-2 mb-3">
@@ -196,11 +200,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
                <div slot="table-actions" class="mt-2 mb-3">
@@ -446,9 +452,11 @@ export default {
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
+        { title: self.$t("date"), dataKey: "date" },
         { title: self.$t("Reference"), dataKey: "Ref" },
         { title: self.$t("Supplier"), dataKey: "provider_name" },
         { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+        { title: "Products", dataKey: "items" },
         { title: self.$t("Total"), dataKey: "GrandTotal" },
         { title: self.$t("Paid"), dataKey: "paid_amount" },
         { title: self.$t("Due"), dataKey: "due" },
@@ -490,10 +498,12 @@ export default {
       pdf.setFont("VazirmatnBold"); 
 
       let columns = [
+        { title: self.$t("date"), dataKey: "date" },
         { title: self.$t("Reference"), dataKey: "Ref" },
         { title: self.$t("Supplier"), dataKey: "provider_name" },
         { title: self.$t("warehouse"), dataKey: "warehouse_name" },
         { title: self.$t("Purchase"), dataKey: "purchase_ref" },
+        { title: "Products", dataKey: "items" },
         { title: self.$t("Total"), dataKey: "GrandTotal" },
         { title: self.$t("Paid"), dataKey: "paid_amount" },
         { title: self.$t("Due"), dataKey: "due" },

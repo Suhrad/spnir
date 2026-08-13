@@ -30,27 +30,34 @@
             enabled: true,
         }"
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         styleClass="mt-5 table-hover tableOne vgt-table"
       >
       <div slot="table-actions" class="mt-2 mb-3">
-        <b-button @click="export_PDF()" size="sm" variant="outline-success ripple m-1">
-          <i class="i-File-Copy"></i> PDF
+        <b-button @click="export_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+          <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+          <i v-else class="i-File-Copy"></i> PDF
         </b-button>
-         <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="products"
-              :columns="columns"
-              :file-name="'product_report'"
-              :file-type="'xlsx'"
-              :sheet-name="'product_report'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+        <vue-excel-xlsx
+          ref="excel_btn"
+          style="display: none;"
+          :data="excel_products"
+          :columns="columns"
+          :file-name="'product_report'"
+          :file-type="'xlsx'"
+          :sheet-name="'product_report'"
+        />
+
+        <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+          <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+          <i v-else class="i-File-Excel"></i> EXCEL
+        </b-button>
 
            <!-- warehouse -->
           <b-form-group :label="$t('warehouse')">
@@ -110,6 +117,9 @@ export default {
       limit: "10",
       totalRows: "",
       products: [],
+      excel_products: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       warehouses: [],
       warehouse_id: "",
       search_products:"",
@@ -189,37 +199,87 @@ export default {
 
 
     //----------------------------------- Export PDF ------------------------------\\
+    fetch_all_products_report() {
+      this.get_data_loaded();
+      return axios.get(
+        "report/product_report?page=1" +
+          "&limit=-1" +
+          "&warehouse_id=" +
+          this.warehouse_id +
+          "&to=" +
+          this.endDate +
+          "&from=" +
+          this.startDate +
+          "&search=" +
+          this.search_products
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_products_report().then(response => {
+        let all_products = response.data.products;
+
+        // Calculate totals based on the complete list
+        let totalsold_qty = all_products.reduce((sum, product) => sum + parseFloat(product.sold_qty || 0), 0);
+        let totalsold_amount = all_products.reduce((sum, product) => sum + parseFloat(product.sold_amount || 0), 0);
+
+        // Append total row
+        all_products.push({
+          code: 'Total',
+          name: '',
+          sold_qty: totalsold_qty.toFixed(2),
+          sold_amount: totalsold_amount.toFixed(2)
+        });
+
+        this.excel_products = all_products;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
+    //----------------------------------- Export PDF ------------------------------\\
     export_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      
+      self.fetch_all_products_report().then(response => {
+        let all_products = response.data.products;
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      let columns = [
-        { title: self.$t("ProductCode"), dataKey: "code" },
-        { title: self.$t("ProductName"), dataKey: "name" },
-        { title: self.$t("TotalSales"), dataKey: "sold_qty" },
-        { title: self.$t("TotalAmount"), dataKey: "sold_amount" },
-      ];
+        let columns = [
+          { title: self.$t("ProductCode"), dataKey: "code" },
+          { title: self.$t("ProductName"), dataKey: "name" },
+          { title: self.$t("TotalSales"), dataKey: "sold_qty" },
+          { title: self.$t("TotalAmount"), dataKey: "sold_amount" },
+        ];
 
         // Calculate totals
-        let totalsold_qty = self.products.reduce((sum, product) => sum + parseFloat(product.sold_qty || 0), 0);
-        let totalsold_amount = self.products.reduce((sum, product) => sum + parseFloat(product.sold_amount || 0), 0);
+        let totalsold_qty = all_products.reduce((sum, product) => sum + parseFloat(product.sold_qty || 0), 0);
+        let totalsold_amount = all_products.reduce((sum, product) => sum + parseFloat(product.sold_amount || 0), 0);
 
         let footer = [{
           code: self.$t("Total"),
           name: '',
           sold_qty:  `${totalsold_qty.toFixed(2)}`,
           sold_amount: `${totalsold_amount.toFixed(2)}`,
-          
         }];
-
 
         pdf.autoTable({
              columns: columns,
-             body: self.products,
+             body: all_products,
              foot: footer,
              startY: 70,
              theme: "grid", 
@@ -242,9 +302,15 @@ export default {
                textColor: [0, 0, 0], 
                fontStyle: "bold", 
              },
-      });
+        });
 
-      pdf.save("Products Report.pdf");
+        pdf.save("Products Report.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
+      });
     },
 
     //---- update Params Table
@@ -281,14 +347,14 @@ export default {
     get_data_loaded() {
       var self = this;
       if (self.today_mode) {
-        let startDate = new Date("01/01/2000");  // Set start date to "01/01/2000"
-        let endDate = new Date();  // Set end date to current date
+        let startDate = moment().startOf('month');
+        let endDate = moment().endOf('day');
 
-        self.startDate = startDate.toISOString();
-        self.endDate = endDate.toISOString();
+        self.startDate = startDate.format("YYYY-MM-DD");
+        self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = startDate.toISOString();
-        self.dateRange.endDate = endDate.toISOString();
+        self.dateRange.startDate = startDate.toDate();
+        self.dateRange.endDate = endDate.toDate();
       }
     },
 

@@ -89,7 +89,14 @@
         @on-sort-change="onSortChange"
         @on-search="onSearch"
         :search-options="{ placeholder: $t('Search_this_table'), enabled: true }"
-        :pagination-options="{ enabled: true, mode: 'records', nextLabel: 'next', prevLabel: 'prev' }"
+        :pagination-options="{
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         styleClass="tableOne table-hover vgt-table mt-3"
       >
         <template slot="table-row" slot-scope="props">

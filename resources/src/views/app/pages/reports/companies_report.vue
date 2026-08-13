@@ -24,11 +24,13 @@
       }"
       
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         styleClass="tableOne table-hover vgt-table mt-3"
       >
         <div slot="table-actions" class="mt-2 mb-3">

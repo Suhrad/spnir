@@ -1279,7 +1279,7 @@
             class="nav-item"
             v-if="currentUserPermissions && currentUserPermissions.includes('report_sales_by_brand')"
           >
-            <router-link tag="a" class to="/app/reports/report_sales_by_brand">
+            <router-link tag="a" class to="/app/reports/sales_item_summary">
               <i class="nav-icon i-Shop"></i>
               <span class="item-name">{{$t('Sales_by_Brand')}}</span>
             </router-link>

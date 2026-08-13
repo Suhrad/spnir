@@ -12,11 +12,13 @@
       @on-page-change="onPageChange"
       @on-per-page-change="onPerPageChange"
       :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
       styleClass="table-hover tableOne vgt-table"
     >
       <div slot="table-actions" class="mt-2 mb-3 quantity_alert_warehouse">
@@ -33,20 +35,24 @@
       </div>
 
       <div slot="table-actions" class="mt-2 mb-3">
-        
-          <b-button @click="stock_alert_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="stock_alert_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
-           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="products"
-              :columns="columns"
-              :file-name="'Alerts_report'"
-              :file-type="'xlsx'"
-              :sheet-name="'Alerts_report'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+          <vue-excel-xlsx
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_alerts"
+            :columns="columns"
+            :file-name="'Alerts_report'"
+            :file-type="'xlsx'"
+            :sheet-name="'Alerts_report'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
         </div>
 
       <template slot="table-row" slot-scope="props">
@@ -82,6 +88,9 @@ export default {
       limit: "10",
       totalRows: "",
       products: [],
+      excel_alerts: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       warehouses: [],
       warehouse_id: ""
     };
@@ -132,26 +141,70 @@ export default {
   methods: {
 
       //----------------------------------- Sales PDF ------------------------------\\
+    fetch_all_alerts() {
+      return axios.get(
+        "get_products_stock_alerts?page=1" +
+          "&warehouse=" +
+          this.warehouse_id +
+          "&limit=-1"
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_alerts().then(response => {
+        let all_alerts = response.data.products.data;
+
+        // Calculate totals based on the complete list
+        let totalquantity = all_alerts.reduce((sum, product) => sum + parseFloat(product.quantity || 0), 0);
+        let totalstock_alert = all_alerts.reduce((sum, product) => sum + parseFloat(product.stock_alert || 0), 0);
+
+        // Append total row
+        all_alerts.push({
+          code: 'Total',
+          name: '',
+          warehouse: '',
+          quantity: totalquantity.toFixed(2),
+          stock_alert: totalstock_alert.toFixed(2)
+        });
+
+        this.excel_alerts = all_alerts;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     stock_alert_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
-
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
-
-      let columns = [
-        { title: self.$t("ProductCode"), dataKey: "code" },
-        { title: self.$t("ProductName"), dataKey: "name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse" },
-        { title: self.$t("Quantity"), dataKey: "quantity" },
-        { title: self.$t("AlertQuantity"), dataKey: "stock_alert" },
-      ];
-
+      self.exporting_pdf = true;
+      NProgress.start();
       
+      self.fetch_all_alerts().then(response => {
+        let all_alerts = response.data.products.data;
+
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
+
+        let columns = [
+          { title: self.$t("ProductCode"), dataKey: "code" },
+          { title: self.$t("ProductName"), dataKey: "name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse" },
+          { title: self.$t("Quantity"), dataKey: "quantity" },
+          { title: self.$t("AlertQuantity"), dataKey: "stock_alert" },
+        ];
+
         // Calculate totals
-        let totalquantity = self.products.reduce((sum, product) => sum + parseFloat(product.quantity || 0), 0);
-        let totalstock_alert = self.products.reduce((sum, product) => sum + parseFloat(product.stock_alert || 0), 0);
+        let totalquantity = all_alerts.reduce((sum, product) => sum + parseFloat(product.quantity || 0), 0);
+        let totalstock_alert = all_alerts.reduce((sum, product) => sum + parseFloat(product.stock_alert || 0), 0);
 
         let footer = [{
           code: self.$t("Total"),
@@ -159,13 +212,11 @@ export default {
           warehouse: '',
           quantity: `${totalquantity.toFixed(2)}`,
           stock_alert: `${totalstock_alert.toFixed(2)}`,
-          
         }];
 
-
-      pdf.autoTable({
+        pdf.autoTable({
              columns: columns,
-             body: self.products,
+             body: all_alerts,
              foot: footer,
              startY: 70,
              theme: "grid", 
@@ -188,10 +239,15 @@ export default {
                textColor: [0, 0, 0], 
                fontStyle: "bold", 
              },
+        });
+
+        pdf.save("Stock_alert_report.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("Stock_alert_report.pdf");
-
     },
 
 

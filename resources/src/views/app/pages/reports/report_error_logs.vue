@@ -11,12 +11,13 @@
       :totalRows="totalRows"
       :rows="logs"
       :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        perPage: perPage,
-        nextLabel: 'Next',
-        prevLabel: 'Prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
       @on-page-change="onPageChange"
       @on-per-page-change="onPerPageChange"
       styleClass="table-hover tableOne vgt-table"

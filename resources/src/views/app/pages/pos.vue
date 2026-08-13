@@ -1655,6 +1655,7 @@ export default {
         discount: 0,
         TaxNet: 0,
         notes:'',
+        round_amount: 0,
       },
       client: {
         id: "",
@@ -2716,6 +2717,7 @@ export default {
             shipping: this.sale.shipping?this.sale.shipping:0,
             details: this.details,
             GrandTotal: this.GrandTotal,
+            round_amount: this.sale.round_amount,
             notes: this.sale.notes,
             // ✅ NEW: Multi-payment array
             payments: this.paymentLines,
@@ -2796,6 +2798,7 @@ export default {
             notes: this.sale.notes,
             details: this.details,
             GrandTotal: this.GrandTotal,
+            round_amount: this.sale.round_amount,
             // ✅ NEW: Multi-payment array
             payments: this.paymentLines,
             send_email: this.sendEmail,
@@ -2889,11 +2892,9 @@ export default {
       this.sale.TaxNet = parseFloat(
         (total_without_discount * this.sale.tax_rate) / 100
       );
-      this.GrandTotal = parseFloat(
-        total_without_discount + this.sale.TaxNet + this.sale.shipping
-      );
-      var grand_total =  this.GrandTotal.toFixed(2);
-      this.GrandTotal = parseFloat(grand_total);
+      const exact_total = total_without_discount + this.sale.TaxNet + this.sale.shipping;
+      this.GrandTotal = Math.round(exact_total);
+      this.sale.round_amount = parseFloat((this.GrandTotal - exact_total).toFixed(2));
     },
     //-------Verified QTY
     Verified_Qty(detail, id) {

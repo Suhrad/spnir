@@ -49,19 +49,24 @@
             <b-button variant="primary" size="sm" class="btn-pill mr-2" @click="Payments_Sales(serverParams.page)">
               <i class="i-Reload mr-1"></i> {{$t('Refresh')}}
             </b-button>
-            <b-button @click="Payment_PDF" size="sm" variant="outline-success" class="btn-pill mr-2">
-              <i class="i-File-Copy"></i> PDF
+            <b-button @click="Payment_PDF" size="sm" variant="outline-success" class="btn-pill mr-2" :disabled="exporting_pdf">
+              <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+              <i v-else class="i-File-Copy"></i> PDF
             </b-button>
             <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger btn-pill"
-              :data="payments"
+              ref="excel_btn"
+              style="display: none;"
+              :data="excel_payments"
               :columns="excelColumns"
               :file-name="'payments_sales'"
               :file-type="'xlsx'"
               :sheet-name="'payments_sales'"
-            >
-              <i class="i-File-Excel"></i> EXCEL
-            </vue-excel-xlsx>
+            />
+
+            <b-button size="sm" variant="outline-danger" class="btn-pill" @click="export_Excel" :disabled="exporting_excel">
+              <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+              <i v-else class="i-File-Excel"></i> EXCEL
+            </b-button>
           </div>
         </div>
       </b-card>
@@ -79,7 +84,14 @@
           @on-sort-change="onSortChange"
           @on-search="onSearch"
           :search-options="{ placeholder: $t('Search_this_table'), enabled: true }"
-          :pagination-options="{ enabled: true, mode: 'records', nextLabel: 'next', prevLabel: 'prev' }"
+          :pagination-options="{
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
           styleClass="table-hover tableOne vgt-table"
         >
           <div slot="table-actions" class="mt-2 mb-3">
@@ -322,7 +334,7 @@ export default {
 
   data() {
     const end = new Date();
-    const start = new Date(); start.setDate(end.getDate() - 29);
+    const start = new Date(end.getFullYear(), end.getMonth(), 1);
     return {
       isLoading: true,
 
@@ -340,6 +352,9 @@ export default {
 
       // data
       payments: [],
+      excel_payments: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       clients: [],
       sales: [],
       payment_methods: [],
@@ -537,8 +552,65 @@ export default {
       return x ? (x.Ref || this.$t('All')) : this.$t('All');
     },
 
+    fetch_all_payments() {
+      const client_id  = this.Filter_client  || '';
+      const sale_id    = this.Filter_sale    || '';
+      const method_id  = this.Filter_Reg     || '';
+      const ref        = this.Filter_Ref     || '';
+      const from       = this.fmt(this.dateRange.startDate);
+      const to         = this.fmt(this.dateRange.endDate);
+
+      const url = "payment_sale?" + new URLSearchParams({
+        page: '1',
+        limit: '-1',
+        Ref: ref,
+        client_id,
+        sale_id,
+        payment_method_id: method_id,
+        SortField: this.serverParams.sort.field,
+        SortType: this.serverParams.sort.type,
+        search: this.search || '',
+        to, from
+      }).toString();
+
+      return axios.get(url);
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_payments().then(response => {
+        let all_payments = response.data.payments || [];
+
+        // Calculate totals based on the complete list
+        let totalAmount = all_payments.reduce((sum, item) => sum + parseFloat(item.montant || 0), 0);
+
+        // Append total row
+        all_payments.push({
+          date: 'Total',
+          Ref: '',
+          Ref_Sale: '',
+          client_name: '',
+          payment_method: '',
+          account_name: '',
+          montant: totalAmount.toFixed(2)
+        });
+
+        this.excel_payments = all_payments;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     // ---------- EXPORT PDF (Payments Sales) ----------
     async Payment_PDF(){
+      this.exporting_pdf = true;
       NProgress.start(); NProgress.set(0.2);
       try{
         // robust date formatting
@@ -660,6 +732,7 @@ export default {
         pdf.save(`payments_sales_${from || 'all'}_${to || 'all'}.pdf`);
       } finally {
         NProgress.done();
+        this.exporting_pdf = false;
       }
     },
 

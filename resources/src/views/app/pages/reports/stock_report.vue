@@ -8,7 +8,7 @@
         mode="remote"
         :columns="columns"
         :totalRows="totalRows"
-        :rows="reports"
+        :rows="rows"
         @on-page-change="onPageChange"
         @on-per-page-change="onPerPageChange"
         @on-sort-change="onSortChange"
@@ -17,12 +17,18 @@
         placeholder: $t('Search_this_table'),
         enabled: true,
       }"
+        :group-options="{
+          enabled: true,
+          headerPosition: 'bottom',
+        }"
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         styleClass="tableOne table-hover vgt-table mt-3"
       >
 
@@ -41,19 +47,24 @@
 
        <div slot="table-actions" class="mt-2 mb-3">
         
-          <b-button @click="stock_report_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="stock_report_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
-           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="reports"
-              :columns="columns"
-              :file-name="'stock_report'"
-              :file-type="'xlsx'"
-              :sheet-name="'stock_report'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+          <vue-excel-xlsx
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_stock"
+            :columns="columns"
+            :file-name="'stock_report'"
+            :file-type="'xlsx'"
+            :sheet-name="'stock_report'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
         </div>
 
         <template slot="table-row" slot-scope="props">
@@ -93,6 +104,13 @@ export default {
       search: "",
       totalRows: "",
       reports: [],
+      rows: [{
+          statut: 'Total',
+          children: [],
+      },],
+      excel_stock: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       report: {},
       warehouses: [],
       warehouse_id: ""
@@ -126,6 +144,8 @@ export default {
         {
           label: this.$t("Current_stock"),
           field: "quantity",
+          type: "decimal",
+          headerField: this.sumCount,
           tdClass: "text-left",
           thClass: "text-left"
         },
@@ -144,8 +164,53 @@ export default {
   methods: {
 
      //----------------------------------- Sales PDF ------------------------------\\
+    fetch_all_stock() {
+      return axios.get(
+        "report/stock?page=1" +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&warehouse_id=" +
+          this.warehouse_id +
+          "&search=" +
+          this.search +
+          "&limit=-1"
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_stock().then(response => {
+        let all_stock = response.data.report;
+
+        // Calculate totals based on the complete list
+        let totalCurrentStock = all_stock.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+
+        // Append total row
+        all_stock.push({
+          code: 'Total',
+          name: '',
+          category: '',
+          quantity: totalCurrentStock.toFixed(2),
+          unit: ''
+        });
+
+        this.excel_stock = all_stock;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     stock_report_PDF() {
-      // Start the progress bar.
+      this.exporting_pdf = true;
       NProgress.start();
       NProgress.set(0.1);
      
@@ -163,12 +228,12 @@ export default {
           link.setAttribute("download", "Stock_Report.pdf");
           document.body.appendChild(link);
           link.click();
-          // Complete the animation of the progress bar.
-          setTimeout(() => NProgress.done(), 500);
+          NProgress.done();
+          this.exporting_pdf = false;
         })
         .catch(() => {
-          // Complete the animation of the progress bar.
-          setTimeout(() => NProgress.done(), 500);
+          NProgress.done();
+          this.exporting_pdf = false;
         });
     },
 
@@ -234,6 +299,14 @@ export default {
       this.Get_Stock_Report(1);
     },
 
+    sumCount(rowObj) {
+      let sum = 0;
+      for (let i = 0; i < rowObj.children.length; i++) {
+        sum += parseFloat(rowObj.children[i].quantity || 0);
+      }
+      return sum.toFixed(2);
+    },
+
     //--------------------------- Get Customer Report -------------\\
 
     Get_Stock_Report(page) {
@@ -259,6 +332,7 @@ export default {
           this.reports = response.data.report;
           this.totalRows = response.data.totalRows;
           this.warehouses = response.data.warehouses;
+          this.rows[0].children = this.reports;
           // Complete the animation of theprogress bar.
           NProgress.done();
           this.isLoading = false;

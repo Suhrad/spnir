@@ -37,11 +37,13 @@
         enabled: true,
       }"
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         styleClass="table-hover tableOne vgt-table"
       >
         <div slot="table-actions" class="mt-2 mb-3">
@@ -49,19 +51,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Payment_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Payment_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="payments"
-              :columns="columns"
-              :file-name="'payments'"
-              :file-type="'xlsx'"
-              :sheet-name="'payments'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_payments"
+            :columns="columns"
+            :file-name="'payments'"
+            :file-type="'xlsx'"
+            :sheet-name="'payments'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
         </div>
       </vue-good-table>
 
@@ -69,8 +76,9 @@
       <b-card class="mt-4" header="Summary by Payment Method">
           <!-- PDF Button -->
           <div class="mb-3 text-right">
-            <b-button @click="Payment_Summary_PDF()" size="sm" variant="outline-primary ripple">
-              <i class="i-File-Copy"></i> Summary PDF
+            <b-button @click="Payment_Summary_PDF()" size="sm" variant="outline-primary ripple" :disabled="exporting_summary_pdf">
+              <span v-if="exporting_summary_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+              <i v-else class="i-File-Copy"></i> Summary PDF
             </b-button>
           </div>
 
@@ -222,6 +230,10 @@ export default {
       Filter_purchase: "",
       Filter_Reg: "",
       payments: [],
+      excel_payments: [],
+      exporting_pdf: false,
+      exporting_excel: false,
+      exporting_summary_pdf: false,
       payment_methods:[],
       clients: [],
       suppliers: [],
@@ -396,74 +408,138 @@ export default {
       }
     },
 
-    Payment_PDF() {
-      const pdf = new jsPDF("p", "pt");
-
-      // Use custom font
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold");
-      pdf.setFont("VazirmatnBold");
-
-      const columns = [
-        { title: "Date", dataKey: "date" },
-        { title: "Reference", dataKey: "Ref" },
-        { title: "Sale / Purchase Ref", dataKey: "Ref_Sale" },
-        { title: "Customer / Provider", dataKey: "client_name" },
-        { title: "Payment Method", dataKey: "payment_method" },
-        { title: "Account", dataKey: "account_name" },
-        { title: "Amount", dataKey: "montant" }
-      ];
-
-      // Calculate total amount
-      const totalGrandTotal = this.payments.reduce(
-        (sum, payment) => sum + parseFloat(payment.montant || 0),
-        0
-      );
-
-      const footer = [{
-        date: "Total",
-        Ref: '',
-        Ref_Sale: '',
-        client_name: '',
-        payment_method: '',
-        account_name: '',
-        montant: `${totalGrandTotal.toFixed(2)}`
-      }];
-
-      pdf.autoTable({
-        columns: columns,
-        body: this.payments,
-        foot: footer,
-        startY: 70,
-        theme: "grid",
-        didDrawPage: (data) => {
-          pdf.setFont("VazirmatnBold");
-          pdf.setFontSize(18);
-          pdf.text("Report Transactions", 40, 25);
-        },
-        styles: {
-          font: "VazirmatnBold",
-          halign: "center"
-        },
-        headStyles: {
-          fillColor: [200, 200, 200],
-          textColor: [0, 0, 0],
-          fontStyle: "bold"
-        },
-        footStyles: {
-          fillColor: [230, 230, 230],
-          textColor: [0, 0, 0],
-          fontStyle: "bold"
+    fetch_all_payments() {
+      this.get_data_loaded();
+      return axios.get("report/report_transactions", {
+        params: {
+          page: 1,
+          client_id: this.Filter_client,
+          sale_id: this.Filter_sale,
+          provider_id: this.Filter_provider,
+          purchase_id: this.Filter_purchase,
+          payment_method_id: this.Filter_Reg,
+          SortField: this.serverParams.sort.field,
+          SortType: this.serverParams.sort.type,
+          search: this.search,
+          limit: -1,
+          to: this.endDate,
+          from: this.startDate,
         }
       });
-
-      pdf.save("Report_Transactions.pdf");
     },
 
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_payments().then(response => {
+        let all_payments = response.data.payments;
+
+        // Calculate totals based on the complete list
+        let totalAmount = all_payments.reduce((sum, item) => sum + parseFloat(item.montant || 0), 0);
+
+        // Append total row
+        all_payments.push({
+          date: 'Total',
+          Ref: '',
+          Ref_Sale: '',
+          client_name: '',
+          payment_method: '',
+          account_name: '',
+          montant: totalAmount.toFixed(2)
+        });
+
+        this.excel_payments = all_payments;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
+    Payment_PDF() {
+      var self = this;
+      self.exporting_pdf = true;
+      NProgress.start();
+      
+      self.fetch_all_payments().then(response => {
+        let all_payments = response.data.payments;
+
+        const pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold");
+        pdf.setFont("VazirmatnBold");
+
+        const columns = [
+          { title: "Date", dataKey: "date" },
+          { title: "Reference", dataKey: "Ref" },
+          { title: "Sale / Purchase Ref", dataKey: "Ref_Sale" },
+          { title: "Customer / Provider", dataKey: "client_name" },
+          { title: "Payment Method", dataKey: "payment_method" },
+          { title: "Account", dataKey: "account_name" },
+          { title: "Amount", dataKey: "montant" }
+        ];
+
+        // Calculate total amount
+        const totalGrandTotal = all_payments.reduce(
+          (sum, payment) => sum + parseFloat(payment.montant || 0),
+          0
+        );
+
+        const footer = [{
+          date: "Total",
+          Ref: '',
+          Ref_Sale: '',
+          client_name: '',
+          payment_method: '',
+          account_name: '',
+          montant: `${totalGrandTotal.toFixed(2)}`
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: all_payments,
+          foot: footer,
+          startY: 70,
+          theme: "grid",
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Report Transactions", 40, 25);
+          },
+          styles: {
+            font: "VazirmatnBold",
+            halign: "center"
+          },
+          headStyles: {
+            fillColor: [200, 200, 200],
+            textColor: [0, 0, 0],
+            fontStyle: "bold"
+          },
+          footStyles: {
+            fillColor: [230, 230, 230],
+            textColor: [0, 0, 0],
+            fontStyle: "bold"
+          }
+        });
+
+        pdf.save("Report_Transactions.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
+      });
+    },
 
     Payment_Summary_PDF() {
+      this.exporting_summary_pdf = true;
+      NProgress.start();
+      
       const pdf = new jsPDF("p", "pt");
-
       const fontPath = "/fonts/Vazirmatn-Bold.ttf";
       pdf.addFont(fontPath, "VazirmatnBold", "bold");
       pdf.setFont("VazirmatnBold");
@@ -503,6 +579,8 @@ export default {
       });
 
       pdf.save("Payment_Summary_Report.pdf");
+      NProgress.done();
+      this.exporting_summary_pdf = false;
     },
 
 
@@ -518,14 +596,14 @@ export default {
     get_data_loaded() {
       var self = this;
       if (self.today_mode) {
-        let today = new Date()
+        let startDate = moment().startOf('month');
+        let endDate = moment().endOf('day');
 
-        self.startDate = today.getFullYear();
-        self.endDate = new Date().toJSON().slice(0, 10);
+        self.startDate = startDate.format("YYYY-MM-DD");
+        self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = today.getFullYear();
-        self.dateRange.endDate = new Date().toJSON().slice(0, 10);
-        
+        self.dateRange.startDate = startDate.toDate();
+        self.dateRange.endDate = endDate.toDate();
       }
     },
 

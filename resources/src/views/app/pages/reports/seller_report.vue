@@ -49,11 +49,13 @@
         enabled: true,
       }"
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         styleClass="table-hover tableOne vgt-table"
       >
         <div slot="table-actions" class="mt-2 mb-3">
@@ -69,19 +71,24 @@
             />
           </b-form-group>
          
-          <b-button @click="Seller_report_pdf()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Seller_report_pdf()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="payments"
-              :columns="columns"
-              :file-name="'Seller_report'"
-              :file-type="'xlsx'"
-              :sheet-name="'Seller_report'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_payments"
+            :columns="columns"
+            :file-name="'Seller_report'"
+            :file-type="'xlsx'"
+            :sheet-name="'Seller_report'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
         </div>
       </vue-good-table>
 
@@ -124,6 +131,9 @@ export default {
       start_time: '',
       end_time: '',
       payments: [],
+      excel_payments: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       paymentMethods: [],
       warehouse_id: "",
       today_mode: true,
@@ -156,6 +166,13 @@ export default {
           tdClass: "text-left",
           thClass: "text-left",
           sortable: true
+        },
+        {
+          label: "Total Orders",
+          field: "total_orders",
+          tdClass: "text-center",
+          thClass: "text-center",
+          sortable: false
         },
         {
           label: this.$t("TotalSales"),
@@ -232,51 +249,131 @@ export default {
     },
 
 
+  fetch_all_seller_report() {
+    this.get_data_loaded();
+    return axios.get("report/seller_report", {
+      params: {
+        page: 1,
+        SortField: this.serverParams.sort.field,
+        SortType: this.serverParams.sort.type,
+        search: this.search,
+        limit: -1,
+        warehouse_id: this.warehouse_id,
+        end_date: this.endDate,
+        start_date: this.startDate,
+        start_time: this.start_time,
+        end_time: this.end_time, 
+      }
+    });
+  },
+
+  export_Excel() {
+    this.exporting_excel = true;
+    NProgress.start();
+    this.fetch_all_seller_report().then(response => {
+      let all_payments = response.data.report;
+
+      // Calculate totals based on the complete list
+      let totals = {
+        username: 'Total',
+        total_sales: all_payments.reduce((sum, item) => sum + parseFloat(item.total_sales || 0), 0).toFixed(2),
+      };
+      this.paymentMethods.forEach(method => {
+        totals[method] = all_payments.reduce((sum, item) => sum + parseFloat(item[method] || 0), 0).toFixed(2);
+      });
+
+      // Append total row
+      all_payments.push(totals);
+
+      this.excel_payments = all_payments;
+      this.$nextTick(() => {
+        this.$refs.excel_btn.$el.click();
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    }).catch(() => {
+      NProgress.done();
+      this.exporting_excel = false;
+    });
+  },
+
   Seller_report_pdf() {
-    const pdf = new jsPDF("p", "pt");
+    var self = this;
+    self.exporting_pdf = true;
+    NProgress.start();
+    
+    self.fetch_all_seller_report().then(response => {
+      let all_payments = response.data.report;
 
-    // Load custom font
-    const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-    pdf.addFont(fontPath, "VazirmatnBold", "bold");
-    pdf.setFont("VazirmatnBold");
+      const pdf = new jsPDF("p", "pt");
+      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+      pdf.addFont(fontPath, "VazirmatnBold", "bold");
+      pdf.setFont("VazirmatnBold");
 
-   // 1. Base headers
-  const headers = [
-    { title: this.$t("Seller"), dataKey: "username" },
-    { title: this.$t("TotalSales"), dataKey: "total_sales" },
-    ...(this.paymentMethods || []).map(method => ({
-      title: this.$t(method.replace(/\s+/g, "_")),
-      dataKey: method
-    }))
-  ];
+      // 1. Base headers
+      const headers = [
+        { title: this.$t("Seller"), dataKey: "username" },
+        { title: "Total Orders", dataKey: "total_orders" },
+        { title: this.$t("TotalSales"), dataKey: "total_sales" },
+        ...(this.paymentMethods || []).map(method => ({
+          title: this.$t(method.replace(/\s+/g, "_")),
+          dataKey: method
+        }))
+      ];
 
-    // 2. Build rows
-    const rows = this.payments;
+      // Calculate totals
+      let totalSales = all_payments.reduce((sum, item) => sum + parseFloat(item.total_sales || 0), 0);
+      let totalOrders = all_payments.reduce((sum, item) => sum + parseFloat(item.total_orders || 0), 0);
+      let totalsRow = {
+        username: this.$t("Total"),
+        total_orders: totalOrders,
+        total_sales: totalSales.toFixed(2),
+      };
+      this.paymentMethods.forEach(method => {
+        totalsRow[method] = all_payments.reduce((sum, item) => sum + parseFloat(item[method] || 0), 0).toFixed(2);
+      });
 
-   
-    // 4. Generate PDF table
-    pdf.autoTable({
-    head: [headers.map(h => h.title)],
-    body: rows.map(row => headers.map(h => row[h.dataKey] ?? '')),
-    startY: 70,
-    theme: "grid",
-    didDrawPage: () => {
-      pdf.setFontSize(18);
-      pdf.text('Seller Payment Report', 40, 25);
-    },
-    styles: {
-      halign: "center"
-    },
-    headStyles: {
-      fillColor: [200, 200, 200],
-      textColor: [0, 0, 0],
-      fontStyle: "bold"
-    }
-  });
+      // Generate PDF table
+      pdf.autoTable({
+        head: [headers.map(h => h.title)],
+        body: [
+          ...all_payments.map(row => headers.map(h => row[h.dataKey] ?? '')),
+          headers.map(h => totalsRow[h.dataKey] ?? '')
+        ],
+        startY: 70,
+        theme: "grid",
+        didDrawPage: () => {
+          pdf.setFontSize(18);
+          pdf.text('Seller Payment Report', 40, 25);
+          // Date range subtitle
+          if (self.startDate && self.endDate) {
+            pdf.setFontSize(11);
+            pdf.text(`Period: ${self.startDate}  to  ${self.endDate}`, 40, 45);
+          }
+        },
+        styles: {
+          font: "VazirmatnBold",
+          halign: "center"
+        },
+        headStyles: {
+          fillColor: [200, 200, 200],
+          textColor: [0, 0, 0],
+          fontStyle: "bold"
+        },
+        footStyles: {
+          fillColor: [230, 230, 230],
+          textColor: [0, 0, 0],
+          fontStyle: "bold"
+        }
+      });
 
-
-    // 5. Save file
-    pdf.save("Seller_Payment_Report.pdf");
+      pdf.save("Seller_Payment_Report.pdf");
+      NProgress.done();
+      self.exporting_pdf = false;
+    }).catch(() => {
+      NProgress.done();
+      self.exporting_pdf = false;
+    });
   },
 
 
@@ -292,18 +389,18 @@ export default {
 
 
      get_data_loaded() {
-      var self = this;
-      if (self.today_mode) {
-        let startDate = new Date("01/01/2000");  // Set start date to "01/01/2000"
-        let endDate = new Date();  // Set end date to current date
+       var self = this;
+       if (self.today_mode) {
+         let startDate = moment().startOf('month');
+         let endDate = moment().endOf('day');
 
-        self.startDate = startDate.toISOString();
-        self.endDate = endDate.toISOString();
+         self.startDate = startDate.format("YYYY-MM-DD");
+         self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = startDate.toISOString();
-        self.dateRange.endDate = endDate.toISOString();
-      }
-    },
+         self.dateRange.startDate = startDate.toDate();
+         self.dateRange.endDate = endDate.toDate();
+       }
+     },
 
     //-------------------------------- Get All Payments Sales ---------------------\\
     Seller_report(page) {

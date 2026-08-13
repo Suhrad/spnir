@@ -106,11 +106,13 @@
                     enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="order-table vgt-table mt-2"
               >
                <div slot="table-actions" class="mt-2 mb-3">
@@ -152,11 +154,13 @@
                     enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="order-table vgt-table mt-2"
               >
                <div slot="table-actions" class="mt-2 mb-3">
@@ -236,11 +240,13 @@
                     enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="order-table vgt-table mt-2"
               >
                <div slot="table-actions" class="mt-2 mb-3">
@@ -292,11 +298,13 @@
                 @on-page-change="PageChangeReturn_Customer"
                 @on-per-page-change="onPerPageChangeReturn_Sale"
                 :pagination-options="{
-                    enabled: true,
-                    mode: 'records',
-                    nextLabel: 'next',
-                    prevLabel: 'prev',
-                  }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 @on-search="onSearch_Return_Sale"
                 :search-options="{
                     placeholder: $t('Search_this_table'),
@@ -357,11 +365,13 @@
                 @on-page-change="PageChangeReturn_Purchase"
                 @on-per-page-change="onPerPageChangeReturn_Purchase"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 @on-search="onSearch_Return_Purchase"
                 :search-options="{
                     placeholder: $t('Search_this_table'),
@@ -422,11 +432,13 @@
                 @on-page-change="PageChange_Expense"
                 @on-per-page-change="onPerPageChange_Expense"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 @on-search="onSearch_Expense"
                 :search-options="{
                     placeholder: $t('Search_this_table'),
@@ -475,11 +487,13 @@
                     enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="order-table vgt-table mt-2"
               >
                <div slot="table-actions" class="mt-2 mb-3">

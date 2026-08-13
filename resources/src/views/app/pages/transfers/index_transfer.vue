@@ -38,19 +38,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Transfer_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Transfer_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
-           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="transfersWithTotal"
-              :columns="excelColumns"
-              :file-name="'transfers'"
-              :file-type="'xlsx'"
-              :sheet-name="'transfers'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+          <vue-excel-xlsx
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_transfers"
+            :columns="excelColumns"
+            :file-name="'transfers'"
+            :file-type="'xlsx'"
+            :sheet-name="'transfers'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
           <router-link
             class="btn-sm btn btn-primary ripple btn-icon m-1"
             v-if="currentUserPermissions && currentUserPermissions.includes('transfer_add')"
@@ -251,6 +256,9 @@ export default {
       details: [],
       warehouses: [],
       transfers: [],
+      excel_transfers: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       transfer: {
         GrandTotal: ""
       },
@@ -606,91 +614,166 @@ export default {
     },
 
     //-------------------------------------- Transfer PDF (List) ------------------------------\\
+    fetch_all_transfers() {
+      this.setToStrings();
+      return axios.get(
+        "transfers?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&statut=" +
+          this.Filter_status +
+          "&from_warehouse_id=" +
+          this.Filter_From +
+          "&to_warehouse_id=" +
+          this.Filter_To +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&search=" +
+          this.search +
+          "&limit=-1"
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_transfers().then(response => {
+        let all_transfers = response.data.transfers;
+
+        // Calculate totals based on the complete list
+        let totalQty = 0;
+        all_transfers.forEach(t => {
+          totalQty += parseFloat(t.all_qtys_sum || 0);
+        });
+
+        // Append total row
+        all_transfers.push({
+          date: '',
+          Ref: '',
+          from_warehouse: 'TOTAL',
+          notes: '',
+          to_warehouse: '',
+          products_name: '',
+          products_quantity: totalQty.toFixed(2)
+        });
+
+        // For each item in all_transfers, ensure products_quantity is populated from all_qtys_sum
+        all_transfers.forEach(t => {
+          if (t.Ref !== '') {
+            t.products_quantity = t.all_qtys_sum;
+          }
+        });
+
+        this.excel_transfers = all_transfers;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
+    //-------------------------------------- Transfer PDF (List) ------------------------------\\
     Transfer_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+      self.exporting_pdf = true;
+      NProgress.start();
+      
+      self.fetch_all_transfers().then(response => {
+        let all_transfers = response.data.transfers;
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let pdf = new jsPDF("p", "pt", "a4"); // Portrait A4
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      let columns = [
-        { title: "Sr.No", dataKey: "sr_no" },
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("FromWarehouse"), dataKey: "from_warehouse_details" },
-        { title: self.$t("ToWarehouse"), dataKey: "to_warehouse" },
-        { title: self.$t("Products"), dataKey: "products_name" },
-        { title: self.$t("Quantity"), dataKey: "products_quantity" },
-      ];
+        let columns = [
+          { title: "Sr.No", dataKey: "sr_no" },
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("FromWarehouse"), dataKey: "from_warehouse_details" },
+          { title: self.$t("ToWarehouse"), dataKey: "to_warehouse" },
+          { title: self.$t("Products"), dataKey: "products_name" },
+          { title: self.$t("Quantity"), dataKey: "products_quantity" },
+        ];
 
-      // Sort transfers chronologically (oldest first - first created comes first)
-      let sortedTransfers = [...self.transfers].sort((a, b) => a.id - b.id);
+        // Sort transfers chronologically
+        let sortedTransfers = [...all_transfers].sort((a, b) => a.id - b.id);
 
-      let totalQty = 0;
-      let formatted_transfers = sortedTransfers.map((transfer, index) => {
-        totalQty += parseFloat(transfer.all_qtys_sum || 0);
+        let totalQty = 0;
+        let formatted_transfers = sortedTransfers.map((transfer, index) => {
+          totalQty += parseFloat(transfer.all_qtys_sum || 0);
 
-        return {
-          sr_no: index + 1,
-          date: transfer.date,
-          from_warehouse_details: `${transfer.from_warehouse}${transfer.notes ? '\nNote: ' + transfer.notes : ''}`,
-          to_warehouse: transfer.to_warehouse,
-          products_name: transfer.products_name,
-          products_quantity: transfer.products_quantity,
-        };
+          return {
+            sr_no: index + 1,
+            date: transfer.date,
+            from_warehouse_details: `${transfer.from_warehouse}${transfer.notes ? '\nNote: ' + transfer.notes : ''}`,
+            to_warehouse: transfer.to_warehouse,
+            products_name: transfer.products_name,
+            products_quantity: transfer.products_quantity,
+          };
+        });
+
+        let footer = [{
+          sr_no: '',
+          date: '',
+          from_warehouse_details: '',
+          to_warehouse: 'Total .....',
+          products_name: '',
+          products_quantity: totalQty.toFixed(2),
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: formatted_transfers,
+          foot: footer,
+          startY: 80,
+          theme: "grid", 
+          styles: {
+            font: "VazirmatnBold", 
+            fontSize: 9,
+            halign: "center",
+          },
+          columnStyles: {
+            from_warehouse_details: { halign: 'left' },
+            to_warehouse: { halign: 'right' },
+            products_name: { halign: 'center' },
+            products_quantity: { halign: 'right' },
+          },
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(16);
+            pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+            pdf.setFontSize(14);
+            pdf.text("Transfer List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+          },
+          headStyles: {
+            fillColor: [242, 242, 242], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
+          },
+          footStyles: {
+            fillColor: [242, 242, 242], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
+          },
+        });
+
+        pdf.save("Transfer_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      let footer = [{
-        sr_no: '',
-        date: '',
-        from_warehouse_details: '',
-        to_warehouse: 'Total .....',
-        products_name: '',
-        products_quantity: totalQty.toFixed(2),
-      }];
-
-      pdf.autoTable({
-        columns: columns,
-        body: formatted_transfers,
-        foot: footer,
-        startY: 80,
-        theme: "grid", 
-        styles: {
-          font: "VazirmatnBold", 
-          fontSize: 9,
-          halign: "center",
-        },
-        columnStyles: {
-          from_warehouse_details: { halign: 'left' },
-          to_warehouse: { halign: 'right' },
-          products_name: { halign: 'center' },
-          products_quantity: { halign: 'right' },
-        },
-        didDrawPage: (data) => {
-          pdf.setFont("VazirmatnBold");
-          pdf.setFontSize(16);
-          pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
-          pdf.setFontSize(14);
-          pdf.text("Transfer List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
-        },
-        headStyles: {
-          fillColor: [242, 242, 242], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
-          lineWidth: 0.5,
-          lineColor: [0, 0, 0],
-        },
-        footStyles: {
-          fillColor: [242, 242, 242], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
-          lineWidth: 0.5,
-          lineColor: [0, 0, 0],
-        },
-      });
-
-      pdf.save("Transfer_List.pdf");
-
     },
 
     //---------------------------------- Delete Transfer ----------------------\\
@@ -774,7 +857,7 @@ export default {
             });
         }
       });
-    }
+    },
   },
 
   //-----------------------------Autoload function-------------------

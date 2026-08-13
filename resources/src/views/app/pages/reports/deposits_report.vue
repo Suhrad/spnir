@@ -41,25 +41,32 @@
           mode: 'records',
           nextLabel: 'next',
           prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
         }"
           styleClass="tableOne table-hover vgt-table mt-3"
         >
   
          <div slot="table-actions" class="mt-2 mb-3">
           
-            <b-button @click="deposits_report_pdf()" size="sm" variant="outline-success ripple m-1">
-              <i class="i-File-Copy"></i> PDF
-            </b-button>
-             <vue-excel-xlsx
-                class="btn btn-sm btn-outline-danger ripple m-1"
-                :data="reports"
-                :columns="columns"
-                :file-name="'deposits_report'"
-                :file-type="'xlsx'"
-                :sheet-name="'deposits_report'"
-                >
-                <i class="i-File-Excel"></i> EXCEL
-            </vue-excel-xlsx>
+          <b-button @click="deposits_report_pdf()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
+          </b-button>
+          <vue-excel-xlsx
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_deposits"
+            :columns="columns"
+            :file-name="'deposits_report'"
+            :file-type="'xlsx'"
+            :sheet-name="'deposits_report'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
           </div>
         </vue-good-table>
       </b-card>
@@ -124,6 +131,9 @@
         search: "",
         totalRows: "",
         reports: [],
+        excel_deposits: [],
+        exporting_pdf: false,
+        exporting_excel: false,
         report: {},
         warehouse_id: 0
       };
@@ -167,58 +177,112 @@
         return sum;
       },
   
-       //----------------------------------- Sales PDF ------------------------------\\
+        //----------------------------------- Sales PDF ------------------------------\\
+      fetch_all_deposits() {
+        this.get_data_loaded();
+        return axios.get(
+          "report/deposits_report?page=1" +
+            "&SortField=" +
+            this.serverParams.sort.field +
+            "&SortType=" +
+            this.serverParams.sort.type +
+            "&search=" +
+            this.search +
+            "&limit=-1" +
+            "&to=" +
+            this.endDate +
+            "&from=" +
+            this.startDate
+        );
+      },
+
+      export_Excel() {
+        this.exporting_excel = true;
+        NProgress.start();
+        NProgress.set(0.1);
+        this.fetch_all_deposits().then(response => {
+          let all_deposits = response.data.reports;
+
+          // Calculate totals based on the complete list
+          let totalGrandTotal = all_deposits.reduce((sum, report) => sum + parseFloat(report.total_deposits || 0), 0);
+
+          // Append total row
+          all_deposits.push({
+            category_name: 'Total',
+            total_deposits: totalGrandTotal.toFixed(2)
+          });
+
+          this.excel_deposits = all_deposits;
+          this.$nextTick(() => {
+            this.$refs.excel_btn.$el.click();
+            NProgress.done();
+            this.exporting_excel = false;
+          });
+        }).catch(() => {
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      },
+
       deposits_report_pdf() {
         var self = this;
-        let pdf = new jsPDF("p", "pt");
+        self.exporting_pdf = true;
+        NProgress.start();
+        self.fetch_all_deposits().then(response => {
+          let all_deposits = response.data.reports;
 
-        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-        pdf.setFont("VazirmatnBold"); 
+          let pdf = new jsPDF("p", "pt");
+          const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+          pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+          pdf.setFont("VazirmatnBold"); 
 
-        let columns = [
-          { title: self.$t("Deposit_Category"), dataKey: "category_name" },
-          { title: self.$t("Total_Deposits"), dataKey: "total_deposits" },
-        ];
-
-        // Calculate totals
-        let totalGrandTotal = self.reports.reduce((sum, report) => sum + parseFloat(report.total_deposits || 0), 0);
-        
-        let footer = [{
-          category_name: self.$t("Total"),
-          total_deposits: `${totalGrandTotal.toFixed(2)}`,
+          let columns = [
+            { title: self.$t("Deposit_Category"), dataKey: "category_name" },
+            { title: self.$t("Total_Deposits"), dataKey: "total_deposits" },
+          ];
           
-        }];
+          // Calculate totals
+          let totalGrandTotal = all_deposits.reduce((sum, report) => sum + parseFloat(report.total_deposits || 0), 0);
+          
+          let footer = [{
+            category_name: self.$t("Total"),
+            total_deposits: `${totalGrandTotal.toFixed(2)}`,
+          }];
 
-        pdf.autoTable({
-             columns: columns,
-             body: self.reports,
-             foot: footer,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Deposits Report", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
-             footStyles: {
-               fillColor: [230, 230, 230], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+          pdf.autoTable({
+               columns: columns,
+               body: all_deposits,
+               foot: footer,
+               startY: 70,
+               theme: "grid", 
+               didDrawPage: (data) => {
+                 pdf.setFont("VazirmatnBold");
+                 pdf.setFontSize(18);
+                 pdf.text("Deposits Report", 40, 25);   
+               },
+               styles: {
+                 font: "VazirmatnBold", 
+                 halign: "center", // 
+               },
+               headStyles: {
+                 fillColor: [200, 200, 200], 
+                 textColor: [0, 0, 0], 
+                 fontStyle: "bold", 
+               },
+               footStyles: {
+                 fillColor: [230, 230, 230], 
+                 textColor: [0, 0, 0], 
+                 fontStyle: "bold", 
+               },
+          });
+
+          pdf.save("deposits_report.pdf");
+          NProgress.done();
+          self.exporting_pdf = false;
+        }).catch(() => {
+          NProgress.done();
+          self.exporting_pdf = false;
         });
-
-        pdf.save("deposits_report.pdf");
-        
       },
   
       //---- update Params Table
@@ -287,14 +351,14 @@
     get_data_loaded() {
       var self = this;
       if (self.today_mode) {
-        let startDate = new Date("01/01/2000");  // Set start date to "01/01/2000"
-        let endDate = new Date();  // Set end date to current date
+        let startDate = moment().startOf('month');
+        let endDate = moment().endOf('day');
 
-        self.startDate = startDate.toISOString();
-        self.endDate = endDate.toISOString();
+        self.startDate = startDate.format("YYYY-MM-DD");
+        self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = startDate.toISOString();
-        self.dateRange.endDate = endDate.toISOString();
+        self.dateRange.startDate = startDate.toDate();
+        self.dateRange.endDate = endDate.toDate();
       }
     },
 

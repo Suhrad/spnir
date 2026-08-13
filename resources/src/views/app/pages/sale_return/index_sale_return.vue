@@ -38,19 +38,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Sale_Return_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Sale_Return_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="sales_return"
-              :columns="columns"
-              :file-name="'sales_return'"
-              :file-type="'xlsx'"
-              :sheet-name="'sales_return'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_sales_returns"
+            :columns="columns"
+            :file-name="'sales_return'"
+            :file-type="'xlsx'"
+            :sheet-name="'sales_return'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
          
         </div>
 
@@ -516,6 +521,9 @@ export default {
       due:0,
       return_sale_due:'',
       sales_return: [],
+      excel_sales_returns: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       payment_methods: [],
       accounts: [],
       sale_return: {},
@@ -865,74 +873,147 @@ export default {
         });
     },
 
+    fetch_all_sales_returns() {
+      this.setToStrings();
+      return axios.get(
+        "returns/sale?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&date=" +
+          this.Filter_date +
+          "&sale_id=" +
+          this.Filter_sale +
+          "&client_id=" +
+          this.Filter_Client +
+          "&statut=" +
+          this.Filter_status +
+          "&warehouse_id=" +
+          this.Filter_warehouse +
+          "&payment_statut=" +
+          this.Filter_Payment +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&search=" +
+          this.search +
+          "&limit=-1"
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_sales_returns().then(response => {
+        let all_returns = response.data.sale_Return;
+
+        // Calculate totals based on the complete list
+        let totalGrandTotal = all_returns.reduce((sum, r) => sum + parseFloat(r.GrandTotal || 0), 0);
+        let totalPaidAmount = all_returns.reduce((sum, r) => sum + parseFloat(r.paid_amount || 0), 0);
+        let totalDue = all_returns.reduce((sum, r) => sum + parseFloat(r.due || 0), 0);
+
+        // Append total row
+        all_returns.push({
+          Ref: 'Total',
+          client_name: '',
+          warehouse_name: '',
+          sale_ref: '',
+          statut: '',
+          GrandTotal: totalGrandTotal.toFixed(2),
+          paid_amount: totalPaidAmount.toFixed(2),
+          due: totalDue.toFixed(2),
+          payment_status: ''
+        });
+
+        this.excel_sales_returns = all_returns;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
     //----------------------------------------- Sales Return PDF -----------------------\\
     Sale_Return_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      
+      self.fetch_all_sales_returns().then(response => {
+        let all_returns = response.data.sale_Return;
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      let columns = [
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("Customer"), dataKey: "client_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Sale_Ref"), dataKey: "sale_ref" },
-        { title: self.$t("Status"), dataKey: "statut" },
-        { title: self.$t("Total"), dataKey: "GrandTotal" },
-        { title: self.$t("Paid"), dataKey: "paid_amount" },
-        { title: self.$t("Due"), dataKey: "due" },
-        { title: self.$t("PaymentStatus"), dataKey: "payment_status" }
-      ];
+        let columns = [
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("Customer"), dataKey: "client_name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+          { title: self.$t("Sale_Ref"), dataKey: "sale_ref" },
+          { title: self.$t("Status"), dataKey: "statut" },
+          { title: self.$t("Total"), dataKey: "GrandTotal" },
+          { title: self.$t("Paid"), dataKey: "paid_amount" },
+          { title: self.$t("Due"), dataKey: "due" },
+          { title: self.$t("PaymentStatus"), dataKey: "payment_status" }
+        ];
 
-      // Calculate totals
-      let totalGrandTotal = self.sales_return.reduce((sum, sale_return) => sum + parseFloat(sale_return.GrandTotal || 0), 0);
-      let totalPaidAmount = self.sales_return.reduce((sum, sale_return) => sum + parseFloat(sale_return.paid_amount || 0), 0);
-      let totalDue = self.sales_return.reduce((sum, sale_return) => sum + parseFloat(sale_return.due || 0), 0);
+        // Calculate totals
+        let totalGrandTotal = all_returns.reduce((sum, r) => sum + parseFloat(r.GrandTotal || 0), 0);
+        let totalPaidAmount = all_returns.reduce((sum, r) => sum + parseFloat(r.paid_amount || 0), 0);
+        let totalDue = all_returns.reduce((sum, r) => sum + parseFloat(r.due || 0), 0);
 
-      let footer = [{
-        Ref: self.$t("Total"),
-        client_name: '',
-        warehouse_name: '',
-        sale_ref: '',
-        statut: '',
-        GrandTotal: `${totalGrandTotal.toFixed(2)}`,
-        paid_amount: `${totalPaidAmount.toFixed(2)}`,
-        due: `${totalDue.toFixed(2)}`,
-        payment_status: '',
-      }];
+        let footer = [{
+          Ref: self.$t("Total"),
+          client_name: '',
+          warehouse_name: '',
+          sale_ref: '',
+          statut: '',
+          GrandTotal: `${totalGrandTotal.toFixed(2)}`,
+          paid_amount: `${totalPaidAmount.toFixed(2)}`,
+          due: `${totalDue.toFixed(2)}`,
+          payment_status: '',
+        }];
 
+        pdf.autoTable({
+          columns: columns,
+          body: all_returns,
+          foot: footer,
+          startY: 70,
+          theme: "grid", 
+          didDrawPage: (data) => {
+            pdf.setFont("VazirmatnBold");
+            pdf.setFontSize(18);
+            pdf.text("Sales Return List", 40, 25);   
+          },
+          styles: {
+            font: "VazirmatnBold", 
+            halign: "center", // 
+          },
+          headStyles: {
+            fillColor: [200, 200, 200], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+          footStyles: {
+            fillColor: [230, 230, 230], 
+            textColor: [0, 0, 0], 
+            fontStyle: "bold", 
+          },
+        });
 
-      pdf.autoTable({
-        columns: columns,
-        body: self.sales_return,
-        foot: footer,
-        startY: 70,
-        theme: "grid", 
-        didDrawPage: (data) => {
-          pdf.setFont("VazirmatnBold");
-          pdf.setFontSize(18);
-          pdf.text("Sales Return List", 40, 25);   
-        },
-        styles: {
-          font: "VazirmatnBold", 
-          halign: "center", // 
-        },
-        headStyles: {
-          fillColor: [200, 200, 200], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
-        },
-        footStyles: {
-          fillColor: [230, 230, 230], 
-          textColor: [0, 0, 0], 
-          fontStyle: "bold", 
-        },
+        pdf.save("Sales_Return_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("Sales_Return_List.pdf");
-   
     },
 
     Number_Order_Payment() {

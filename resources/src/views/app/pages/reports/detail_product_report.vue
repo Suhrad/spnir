@@ -59,11 +59,13 @@
                   enabled: true,
                 }"
                 :pagination-options="{
-                  enabled: true,
-                  mode: 'records',
-                  nextLabel: 'next',
-                  prevLabel: 'prev',
-                }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
                 styleClass="tableOne table-hover vgt-table"
               >
               <div slot="table-actions" class="mt-2 mb-3">
@@ -72,20 +74,24 @@
                   {{ $t("Filter") }}
                 </b-button>
 
-                <b-button @click="Sales_PDF()" size="sm" variant="outline-success ripple m-1">
-                  <i class="i-File-Copy"></i> PDF
+                <b-button @click="Sales_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+                  <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Copy"></i> PDF
                 </b-button>
+                <vue-excel-xlsx
+                  ref="excel_btn"
+                  style="display: none;"
+                  :data="excel_sales"
+                  :columns="columns_sales"
+                  :file-name="'product_report'"
+                  :file-type="'xlsx'"
+                  :sheet-name="'product_report'"
+                />
 
-                 <vue-excel-xlsx
-                    class="btn btn-sm btn-outline-danger ripple m-1"
-                    :data="sales"
-                    :columns="columns_sales"
-                    :file-name="'product_report'"
-                    :file-type="'xlsx'"
-                    :sheet-name="'product_report'"
-                    >
-                    <i class="i-File-Excel"></i> EXCEL
-                </vue-excel-xlsx>
+                <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+                  <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i v-else class="i-File-Excel"></i> EXCEL
+                </b-button>
 
               </div>
                 <template slot="table-row" slot-scope="props">
@@ -214,6 +220,9 @@ export default {
      
       isLoading: true,
       sales: [],
+      excel_sales: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       warehouses: [],
       customers: [],
       users: [],
@@ -319,47 +328,138 @@ export default {
 
 
      //----------------------------------- Sales PDF ------------------------------\\
+    fetch_all_sales() {
+      this.get_data_loaded();
+      return axios.get(
+        "/report/sale_products_details?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&client_id=" +
+          this.Filter_Client +
+          "&warehouse_id=" +
+          this.Filter_warehouse +
+          "&user_id=" +
+          this.Filter_user +
+          "&limit=-1" +
+          "&to=" +
+          this.endDate +
+          "&from=" +
+          this.startDate +
+          "&search=" +
+          this.search_sales +
+          "&id=" +
+          this.$route.params.id
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      this.fetch_all_sales().then(response => {
+        let all_sales = response.data.sales;
+
+        // Calculate totals based on the complete list
+        let totalQty = all_sales.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        let totalSubTotal = all_sales.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+
+        // Append total row
+        all_sales.push({
+          date: 'Total',
+          Ref: '',
+          created_by: '',
+          product_name: '',
+          client_name: '',
+          warehouse_name: '',
+          quantity: totalQty.toFixed(2),
+          total: totalSubTotal.toFixed(2)
+        });
+
+        this.excel_sales = all_sales;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
+    //----------------------------------- Sales PDF ------------------------------\\
     Sales_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      
+      self.fetch_all_sales().then(response => {
+        let all_sales = response.data.sales;
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let pdf = new jsPDF("p", "pt");
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      let columns = [
-        { title: self.$t("date"), dataKey: "date" },
-        { title: self.$t("Reference"), dataKey: "Ref" },
-        { title: self.$t("Created_by"), dataKey: "created_by" },
-        { title: self.$t("product_name"), dataKey: "product_name" },
-        { title: self.$t("Customer"), dataKey: "client_name" },
-        { title: self.$t("warehouse"), dataKey: "warehouse_name" },
-        { title: self.$t("Quantity"), dataKey: "quantity" },
-        { title: self.$t("SubTotal"), dataKey: "total" },
-      ];
+        let columns = [
+          { title: self.$t("date"), dataKey: "date" },
+          { title: self.$t("Reference"), dataKey: "Ref" },
+          { title: self.$t("Created_by"), dataKey: "created_by" },
+          { title: self.$t("product_name"), dataKey: "product_name" },
+          { title: self.$t("Customer"), dataKey: "client_name" },
+          { title: self.$t("warehouse"), dataKey: "warehouse_name" },
+          { title: self.$t("Quantity"), dataKey: "quantity" },
+          { title: self.$t("SubTotal"), dataKey: "total" },
+        ];
 
-      pdf.autoTable({
-             columns: columns,
-             body: self.sales,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Sale List", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+        // Calculate totals
+        let totalQty = all_sales.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        let totalSubTotal = all_sales.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+
+        let footer = [{
+          date: self.$t("Total"),
+          Ref: '',
+          created_by: '',
+          product_name: '',
+          client_name: '',
+          warehouse_name: '',
+          quantity: `${totalQty.toFixed(2)}`,
+          total: `${totalSubTotal.toFixed(2)}`,
+        }];
+
+        pdf.autoTable({
+              columns: columns,
+              body: all_sales,
+              foot: footer,
+              startY: 70,
+              theme: "grid", 
+              didDrawPage: (data) => {
+                pdf.setFont("VazirmatnBold");
+                pdf.setFontSize(18);
+                pdf.text("Sale List", 40, 25);   
+              },
+              styles: {
+                font: "VazirmatnBold", 
+                halign: "center", // 
+              },
+              headStyles: {
+                fillColor: [200, 200, 200], 
+                textColor: [0, 0, 0], 
+                fontStyle: "bold", 
+              },
+              footStyles: {
+                fillColor: [230, 230, 230], 
+                textColor: [0, 0, 0], 
+                fontStyle: "bold", 
+              },
+        });
+
+        pdf.save("Sale_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      pdf.save("Sale_List.pdf");
     },
 
     //------------------------------Formetted Numbers -------------------------\\
@@ -410,14 +510,14 @@ export default {
     get_data_loaded() {
       var self = this;
       if (self.today_mode) {
-        let startDate = new Date("01/01/2000");  // Set start date to "01/01/2000"
-        let endDate = new Date();  // Set end date to current date
+        let startDate = moment().startOf('month');
+        let endDate = moment().endOf('day');
 
-        self.startDate = startDate.toISOString();
-        self.endDate = endDate.toISOString();
+        self.startDate = startDate.format("YYYY-MM-DD");
+        self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = startDate.toISOString();
-        self.dateRange.endDate = endDate.toISOString();
+        self.dateRange.startDate = startDate.toDate();
+        self.dateRange.endDate = endDate.toDate();
       }
     },
 

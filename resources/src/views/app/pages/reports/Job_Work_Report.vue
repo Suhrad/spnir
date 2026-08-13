@@ -106,7 +106,14 @@
           :totalRows="totalRows"
           @on-page-change="onPageChange"
           @on-per-page-change="onPerPageChange"
-          :pagination-options="{ enabled: true }"
+          :pagination-options="{
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
           styleClass="tableOne table-hover vgt-table"
         >
           <template slot="table-row" slot-scope="props">

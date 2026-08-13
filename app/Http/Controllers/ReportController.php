@@ -559,6 +559,7 @@ class ReportController extends BaseController
     public function Report_Sales(request $request)
     {
         $this->authorizeForUser($request->user('api'), 'Reports_sales', Sale::class);
+        \Log::info("--- DEBUG REPORT SALES --- limit: " . $request->limit . " page: " . \Request::get('page', 1));
         // How many items do you want to display.
         $perPage = $request->limit;
         $pageStart = \Request::get('page', 1);
@@ -3965,6 +3966,11 @@ class ReportController extends BaseController
                             return $query->whereHas('product', function ($q) use ($request) {
                                 $q->where('name', 'LIKE', "%{$request->search}%");
                             });
+                        })
+                        ->orWhere(function ($query) use ($request) {
+                            return $query->whereHas('product.category', function ($q) use ($request) {
+                                $q->where('name', 'LIKE', "%{$request->search}%");
+                            });
                         });
                 });
             });
@@ -4128,6 +4134,11 @@ class ReportController extends BaseController
                         })
                         ->orWhere(function ($query) use ($request) {
                             return $query->whereHas('purchase.warehouse', function ($q) use ($request) {
+                                $q->where('name', 'LIKE', "%{$request->search}%");
+                            });
+                        })
+                        ->orWhere(function ($query) use ($request) {
+                            return $query->whereHas('product.category', function ($q) use ($request) {
                                 $q->where('name', 'LIKE', "%{$request->search}%");
                             });
                         });
@@ -4881,6 +4892,194 @@ class ReportController extends BaseController
             'reports' => $data,
             'totalRows' => $totalRows,
             'currency' => $currency,
+        ]);
+    }
+
+
+    public function sales_item_summary(Request $request)
+    {
+        $this->authorizeForUser($request->user('api'), 'report_sales_by_brand', Sale::class);
+
+        $helpers = new helpers();
+        $currency = $helpers->Get_Currency_Code();
+
+        // 1. Fetch sales details matching date range and other filters
+        $query = SaleDetail::with(['product.category', 'sale.client', 'sale.warehouse'])
+            ->whereHas('sale', function ($q) use ($request) {
+                $q->whereNull('deleted_at');
+                if ($request->filled('warehouse_id')) {
+                    $q->where('warehouse_id', $request->warehouse_id);
+                }
+            })
+            ->whereBetween('date', [$request->from, $request->to]);
+
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
+
+        if ($request->filled('category_id')) {
+            $query->whereHas('product', function ($q) use ($request) {
+                $q->where('category_id', $request->category_id);
+            });
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('item_name', 'LIKE', "%{$request->search}%")
+                  ->orWhere('hsn_sac_code', 'LIKE', "%{$request->search}%")
+                  ->orWhereHas('product', function ($qp) use ($request) {
+                      $qp->where('name', 'LIKE', "%{$request->search}%")
+                        ->orWhere('code', 'LIKE', "%{$request->search}%");
+                  });
+            });
+        }
+
+        $sale_details = $query->get();
+
+        $grouped_data = [];
+
+        foreach ($sale_details as $detail) {
+            $categoryName = ($detail->product && $detail->product->category) 
+                ? $detail->product->category->name 
+                : 'Uncategorized';
+
+            $itemName = $detail->item_name ?: ($detail->product ? $detail->product->name : 'N/A');
+            $hsn = $detail->hsn_sac_code ?: ($detail->product ? $detail->product->hsn_sac_code : 'N/A') ?: 'N/A';
+            $tax_rate = (float)($detail->gst_rate ?: $detail->TaxNet ?: 0);
+
+            // Compute Amounts
+            $total_amount = (float)($detail->total_amount ?: $detail->total ?: 0);
+            $net_amount = (float)($detail->net_amount ?: ($total_amount / (1 + ($tax_rate / 100))));
+            $total_tax = $total_amount - $net_amount;
+
+            // Split into CGST, SGST, IGST
+            $is_interstate = false;
+            if ($detail->igst_amount > 0) {
+                $is_interstate = true;
+            } else {
+                $client = $detail->sale ? $detail->sale->client : null;
+                $warehouse = $detail->sale ? $detail->sale->warehouse : null;
+                if ($client && $warehouse && $client->state && $warehouse->state) {
+                    $is_interstate = strtolower(trim($client->state)) !== strtolower(trim($warehouse->state));
+                }
+            }
+
+            if ($is_interstate) {
+                $igst = $detail->igst_amount ?: $total_tax;
+                $cgst = 0.0;
+                $sgst = 0.0;
+            } else {
+                $igst = 0.0;
+                $cgst = $detail->cgst_amount ?: ($total_tax / 2);
+                $sgst = $detail->sgst_amount ?: ($total_tax / 2);
+            }
+
+            $qty = (float)$detail->quantity;
+
+            // Create group key
+            $key = $itemName . '_' . $hsn . '_' . $tax_rate;
+
+            if (!isset($grouped_data[$categoryName])) {
+                $grouped_data[$categoryName] = [];
+            }
+
+            if (!isset($grouped_data[$categoryName][$key])) {
+                $grouped_data[$categoryName][$key] = [
+                    'item_name' => $itemName,
+                    'hsn_code' => $hsn,
+                    'gst_rate' => $tax_rate,
+                    'quantity' => 0.0,
+                    'net_amount' => 0.0,
+                    'cgst_amount' => 0.0,
+                    'sgst_amount' => 0.0,
+                    'igst_amount' => 0.0,
+                    'total_amount' => 0.0,
+                ];
+            }
+
+            $grouped_data[$categoryName][$key]['quantity'] += $qty;
+            $grouped_data[$categoryName][$key]['net_amount'] += $net_amount;
+            $grouped_data[$categoryName][$key]['cgst_amount'] += $cgst;
+            $grouped_data[$categoryName][$key]['sgst_amount'] += $sgst;
+            $grouped_data[$categoryName][$key]['igst_amount'] += $igst;
+            $grouped_data[$categoryName][$key]['total_amount'] += $total_amount;
+        }
+
+        // 2. Format response data with nested categories, sub-totals and grand-totals
+        $formatted_sales = [];
+        $grand_totals = [
+            'quantity' => 0.0,
+            'net_amount' => 0.0,
+            'cgst_amount' => 0.0,
+            'sgst_amount' => 0.0,
+            'igst_amount' => 0.0,
+            'total_amount' => 0.0,
+        ];
+
+        foreach ($grouped_data as $category => $items) {
+            $cat_items = array_values($items);
+            
+            // Sort items by name within category
+            usort($cat_items, function($a, $b) {
+                return strcmp($a['item_name'], $b['item_name']);
+            });
+
+            $sub_total = [
+                'quantity' => 0.0,
+                'net_amount' => 0.0,
+                'cgst_amount' => 0.0,
+                'sgst_amount' => 0.0,
+                'igst_amount' => 0.0,
+                'total_amount' => 0.0,
+            ];
+
+            foreach ($cat_items as $item) {
+                $sub_total['quantity'] += $item['quantity'];
+                $sub_total['net_amount'] += $item['net_amount'];
+                $sub_total['cgst_amount'] += $item['cgst_amount'];
+                $sub_total['sgst_amount'] += $item['sgst_amount'];
+                $sub_total['igst_amount'] += $item['igst_amount'];
+                $sub_total['total_amount'] += $item['total_amount'];
+            }
+
+            $formatted_sales[] = [
+                'category_name' => $category,
+                'items' => $cat_items,
+                'sub_total' => $sub_total
+            ];
+
+            $grand_totals['quantity'] += $sub_total['quantity'];
+            $grand_totals['net_amount'] += $sub_total['net_amount'];
+            $grand_totals['cgst_amount'] += $sub_total['cgst_amount'];
+            $grand_totals['sgst_amount'] += $sub_total['sgst_amount'];
+            $grand_totals['igst_amount'] += $sub_total['igst_amount'];
+            $grand_totals['total_amount'] += $sub_total['total_amount'];
+        }
+
+        // Sort categories alphabetically
+        usort($formatted_sales, function($a, $b) {
+            return strcmp($a['category_name'], $b['category_name']);
+        });
+
+        // Get filter options (warehouses, categories, products)
+        $user_auth = auth()->user();
+        if ($user_auth->is_all_warehouses) {
+            $warehouses = Warehouse::where('deleted_at', '=', null)->get(['id', 'name']);
+        } else {
+            $warehouses_id = UserWarehouse::where('user_id', $user_auth->id)->pluck('warehouse_id')->toArray();
+            $warehouses = Warehouse::where('deleted_at', '=', null)->whereIn('id', $warehouses_id)->get(['id', 'name']);
+        }
+        
+        $categories = Category::where('deleted_at', '=', null)->get(['id', 'name']);
+        $products = Product::where('deleted_at', '=', null)->get(['id', 'name']);
+
+        return response()->json([
+            'sales_summary' => $formatted_sales,
+            'grand_totals' => $grand_totals,
+            'currency' => $currency,
+            'warehouses' => $warehouses,
+            'categories' => $categories,
+            'products' => $products,
         ]);
     }
 

@@ -37,11 +37,13 @@
         enabled: true,
       }"
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         :styleClass="'order-table vgt-table'"
       >
         <div slot="table-actions" class="mt-2 mb-3">
@@ -49,19 +51,24 @@
             <i class="i-Filter-2"></i>
             {{ $t("Filter") }}
           </b-button>
-          <b-button @click="Purchase_PDF()" size="sm" variant="outline-success ripple m-1">
-            <i class="i-File-Copy"></i> PDF
+          <b-button @click="Purchase_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+            <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Copy"></i> PDF
           </b-button>
           <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="purchases"
-              :columns="columns"
-              :file-name="'purchases_report'"
-              :file-type="'xlsx'"
-              :sheet-name="'purchases_report'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+            ref="excel_btn"
+            style="display: none;"
+            :data="excel_purchases"
+            :columns="columns"
+            :file-name="'purchases_report'"
+            :file-type="'xlsx'"
+            :sheet-name="'purchases_report'"
+          />
+
+          <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+            <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+            <i v-else class="i-File-Excel"></i> EXCEL
+          </b-button>
         </div>
 
         <template slot="table-row" slot-scope="props">
@@ -209,6 +216,9 @@ components: { DateRangePicker },
       Filter_Ref: "",
       suppliers: [],
       purchases: [],
+      excel_purchases: [],
+      exporting_pdf: false,
+      exporting_excel: false,
       warehouses: [],
       rows: [{
           statut: 'Total',
@@ -362,88 +372,160 @@ components: { DateRangePicker },
     },
 
     //---------------------- Purchases PDF -------------------------------\\
+    fetch_all_purchases() {
+      this.setToStrings();
+      this.get_data_loaded();
+      return axios.get(
+        "/report/purchases?page=1" +
+          "&Ref=" +
+          this.Filter_Ref +
+          "&provider_id=" +
+          this.Filter_Supplier +
+          "&warehouse_id=" +
+          this.Filter_warehouse +
+          "&statut=" +
+          this.Filter_status +
+          "&payment_statut=" +
+          this.Filter_Payment +
+          "&SortField=" +
+          this.serverParams.sort.field +
+          "&SortType=" +
+          this.serverParams.sort.type +
+          "&search=" +
+          this.search +
+          "&limit=-1" +
+          "&to=" +
+          this.endDate +
+          "&from=" +
+          this.startDate
+      );
+    },
+
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      NProgress.set(0.1);
+      this.fetch_all_purchases().then(response => {
+        let all_purchases = response.data.purchases;
+
+        // Calculate totals based on the complete list
+        let totalAmount = all_purchases.reduce((sum, p) => sum + parseFloat(p.GrandTotal || 0), 0);
+
+        // Append total row
+        all_purchases.push({
+          date: 'Total',
+          Ref: '',
+          provider_name: '',
+          items: '',
+          GrandTotal: totalAmount.toFixed(2)
+        });
+
+        this.excel_purchases = all_purchases;
+        this.$nextTick(() => {
+          this.$refs.excel_btn.$el.click();
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+      }).catch(() => {
+        NProgress.done();
+        this.exporting_excel = false;
+      });
+    },
+
+    //----------------------------------- Purchase PDF ------------------------------\\
     Purchase_PDF() {
       var self = this;
-      let pdf = new jsPDF("l", "pt"); // Landscape
+      self.exporting_pdf = true;
+      NProgress.start();
+      NProgress.set(0.1);
+      
+      self.fetch_all_purchases().then(response => {
+        let all_purchases = response.data.purchases;
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
+        let pdf = new jsPDF("l", "pt"); // Landscape
+        const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+        pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+        pdf.setFont("VazirmatnBold"); 
 
-      let columns = [
-        { title: "Sr.No", dataKey: "sr_no" },
-        { title: self.$t("date"), dataKey: "date" },
-        { title: "Bill No.", dataKey: "Ref" },
-        { title: "Supplier Name", dataKey: "party_details" },
-        { title: "Items", dataKey: "items" },
-        { title: "Bill Amount", dataKey: "GrandTotal" },
-      ];
+        let columns = [
+          { title: "Sr.No", dataKey: "sr_no" },
+          { title: self.$t("date"), dataKey: "date" },
+          { title: "Bill No.", dataKey: "Ref" },
+          { title: "Supplier Name", dataKey: "party_details" },
+          { title: "Items", dataKey: "items" },
+          { title: "Bill Amount", dataKey: "GrandTotal" },
+        ];
 
-      let formatted_purchases = self.purchases.map((purchase, index) => {
-        return {
-          sr_no: index + 1,
-          date: purchase.date,
-          Ref: purchase.Ref,
-          party_details: `${purchase.provider_name}${purchase.notes ? '\nNote: ' + purchase.notes : ''}`,
-          items: purchase.items,
-          GrandTotal: self.formatNumber(purchase.GrandTotal, 2),
-        };
+        let formatted_purchases = all_purchases.map((purchase, index) => {
+          return {
+            sr_no: index + 1,
+            date: purchase.date,
+            Ref: purchase.Ref,
+            party_details: `${purchase.provider_name}${purchase.notes ? '\nNote: ' + purchase.notes : ''}`,
+            items: purchase.items,
+            GrandTotal: self.formatNumber(purchase.GrandTotal, 2),
+          };
+        });
+
+        let totalAmount = all_purchases.reduce((sum, p) => sum + parseFloat(p.GrandTotal || 0), 0);
+
+        let footer = [{
+          sr_no: '',
+          date: '',
+          Ref: '',
+          party_details: '',
+          items: 'Total .....',
+          GrandTotal: totalAmount.toFixed(2),
+        }];
+
+        pdf.autoTable({
+          columns: columns,
+          body: formatted_purchases,
+          foot: footer,
+          startY: 80,
+          theme: "grid", 
+          styles: {
+            font: "VazirmatnBold", 
+            fontSize: 9,
+            halign: "center",
+          },
+          columnStyles: {
+             party_details: { halign: 'left' },
+             items: { halign: 'left' },
+             GrandTotal: { halign: 'right' },
+          },
+          didDrawPage: (data) => {
+             pdf.setFont("VazirmatnBold");
+             pdf.setFontSize(16);
+             pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
+             pdf.setFontSize(14);
+             pdf.text("Purchases List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
+             pdf.setFontSize(10);
+             pdf.text(`Period From : ${self.startDate} To ${self.endDate}`, pdf.internal.pageSize.width / 2, 65, { align: 'center' });
+          },
+          headStyles: {
+             fillColor: [242, 242, 242], 
+             textColor: [0, 0, 0], 
+             fontStyle: "bold", 
+             lineWidth: 0.5,
+             lineColor: [0, 0, 0],
+          },
+          footStyles: {
+             fillColor: [242, 242, 242], 
+             textColor: [0, 0, 0], 
+             fontStyle: "bold", 
+             lineWidth: 0.5,
+             lineColor: [0, 0, 0],
+          },
+        });
+
+        pdf.save("Purchases_List.pdf");
+        NProgress.done();
+        self.exporting_pdf = false;
+      }).catch(() => {
+        NProgress.done();
+        self.exporting_pdf = false;
       });
-
-      let totalTax = self.purchases.reduce((sum, p) => sum + (parseFloat(p.cgst_amount || 0) + parseFloat(p.sgst_amount || 0) + parseFloat(p.igst_amount || 0)), 0);
-      let totalAmount = self.purchases.reduce((sum, p) => sum + parseFloat(p.GrandTotal || 0), 0);
-
-      let footer = [{
-        sr_no: '',
-        date: '',
-        Ref: '',
-        party_details: '',
-        items: 'Total .....',
-        GrandTotal: totalAmount.toFixed(2),
-      }];
-
-      pdf.autoTable({
-        columns: columns,
-        body: formatted_purchases,
-        foot: footer,
-        startY: 80,
-        theme: "grid", 
-        styles: {
-          font: "VazirmatnBold", 
-          fontSize: 9,
-          halign: "center",
-        },
-        columnStyles: {
-           party_details: { halign: 'left' },
-           items: { halign: 'left' },
-           GrandTotal: { halign: 'right' },
-        },
-        didDrawPage: (data) => {
-           pdf.setFont("VazirmatnBold");
-           pdf.setFontSize(16);
-           pdf.text("|| Swami Shreeji ||", pdf.internal.pageSize.width / 2, 25, { align: 'center' });
-           pdf.setFontSize(14);
-           pdf.text("Purchases List", pdf.internal.pageSize.width / 2, 45, { align: 'center' });
-           pdf.setFontSize(10);
-           pdf.text(`Period From : ${self.startDate} To ${self.endDate}`, pdf.internal.pageSize.width / 2, 65, { align: 'center' });
-        },
-        headStyles: {
-           fillColor: [242, 242, 242], 
-           textColor: [0, 0, 0], 
-           fontStyle: "bold", 
-           lineWidth: 0.5,
-           lineColor: [0, 0, 0],
-        },
-        footStyles: {
-           fillColor: [242, 242, 242], 
-           textColor: [0, 0, 0], 
-           fontStyle: "bold", 
-           lineWidth: 0.5,
-           lineColor: [0, 0, 0],
-        },
-      });
-
-      pdf.save("Purchases_List.pdf");
     },
 
     //---------------------------------------- Set To Strings-------------------------\\
@@ -468,14 +550,14 @@ components: { DateRangePicker },
     get_data_loaded() {
       var self = this;
       if (self.today_mode) {
-        let startDate = new Date("01/01/2000");  // Set start date to "01/01/2000"
-        let endDate = new Date();  // Set end date to current date
+        let startDate = moment().startOf('month');
+        let endDate = moment().endOf('day');
 
-        self.startDate = startDate.toISOString();
-        self.endDate = endDate.toISOString();
+        self.startDate = startDate.format("YYYY-MM-DD");
+        self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = startDate.toISOString();
-        self.dateRange.endDate = endDate.toISOString();
+        self.dateRange.startDate = startDate.toDate();
+        self.dateRange.endDate = endDate.toDate();
       }
     },
 

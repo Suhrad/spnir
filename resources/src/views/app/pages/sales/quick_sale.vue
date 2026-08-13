@@ -249,15 +249,17 @@ export default {
         NProgress.start();
 
         const salesData = validSales.map(row => {
-            // Calculate totals as expected by backend
-            const subtotal = row.quantity * row.amount;
+            const exact_subtotal = row.quantity * row.amount;
+            const rounded_subtotal = Math.round(exact_subtotal);
+            const round_amount = parseFloat((rounded_subtotal - exact_subtotal).toFixed(2));
             return {
                 date: this.date,
                 warehouse_id: this.warehouse_id,
                 client_id: row.client_id,
                 statut: "completed",
                 notes: row.note,
-                GrandTotal: subtotal,
+                GrandTotal: rounded_subtotal,
+                round_amount: round_amount,
                 TaxNet: 0,
                 tax_rate: 0,
                 discount: 0,
@@ -266,7 +268,7 @@ export default {
                     product_id: row.product_id,
                     quantity: row.quantity,
                     Unit_price: row.amount,
-                    subtotal: subtotal,
+                    subtotal: rounded_subtotal,
                     sale_unit_id: row.unit_id,
                     tax_method: row.tax_method || "1",
                     tax_percent: row.tax_percent || 0,

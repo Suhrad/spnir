@@ -23,6 +23,8 @@
           mode: 'records',
           nextLabel: 'next',
           prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
         }"
           styleClass="tableOne table-hover vgt-table mt-3"
         >

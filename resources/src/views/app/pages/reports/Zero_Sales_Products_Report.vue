@@ -40,11 +40,10 @@
         :pagination-options="{
           enabled: true,
           mode: 'records',
-          perPage: serverParams.perPage,
-          perPageDropdown: [10, 20, 50, 100],
-          dropdownAllowAll: true,
           nextLabel: 'next',
-          prevLabel: 'prev'
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
         }"
         styleClass="tableOne table-hover vgt-table mt-3"
       >

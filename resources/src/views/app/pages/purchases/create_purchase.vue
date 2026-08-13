@@ -711,7 +711,7 @@ export default {
         detail.subtotal = parseFloat(parseFloat(detail.subtotal || 0).toFixed(2));
         this.total = parseFloat((this.total + detail.subtotal).toFixed(2));
       }
-      this.GrandTotal = parseFloat(this.total.toFixed(2));
+      this.GrandTotal = Math.round(this.total);
     },
 
     delete_Product_Detail(id) {

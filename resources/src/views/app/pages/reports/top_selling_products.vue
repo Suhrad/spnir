@@ -16,12 +16,26 @@
         </date-range-picker>
       </b-col>
 
+      <vue-excel-xlsx
+        ref="excel_btn"
+        style="display: none;"
+        :data="excel_products"
+        :columns="columns"
+        :file-name="'product_report'"
+        :file-type="'xlsx'"
+        :sheet-name="'product_report'"
+      />
+
       <vue-good-table
         v-if="!isLoading"
         mode="remote"
         :columns="columns"
         :totalRows="totalRows"
-        :rows="products"
+        :rows="rows"
+        :group-options="{
+          enabled: true,
+          headerPosition: 'bottom',
+        }"
         @on-page-change="onPageChange"
         @on-per-page-change="onPerPageChange"
         @on-search="onSearch_products"
@@ -30,28 +44,25 @@
             enabled: true,
         }"
         :pagination-options="{
-        enabled: true,
-        mode: 'records',
-        nextLabel: 'next',
-        prevLabel: 'prev',
-      }"
+          enabled: true,
+          mode: 'records',
+          nextLabel: 'next',
+          prevLabel: 'prev',
+          dropdownAllowAll: true,
+          perPage: serverParams.perPage
+        }"
         styleClass="mt-5 table-hover tableOne vgt-table"
       >
       <div slot="table-actions" class="mt-2 mb-3">
-        <b-button @click="export_PDF()" size="sm" variant="outline-success ripple m-1">
-          <i class="i-File-Copy"></i> PDF
+        <b-button @click="export_PDF()" size="sm" variant="outline-success ripple m-1" :disabled="exporting_pdf">
+          <span v-if="exporting_pdf" class="spinner-border spinner-border-sm mr-1"></span>
+          <i v-else class="i-File-Copy"></i> PDF
         </b-button>
 
-         <vue-excel-xlsx
-              class="btn btn-sm btn-outline-danger ripple m-1"
-              :data="products"
-              :columns="columns"
-              :file-name="'product_report'"
-              :file-type="'xlsx'"
-              :sheet-name="'product_report'"
-              >
-              <i class="i-File-Excel"></i> EXCEL
-          </vue-excel-xlsx>
+        <b-button @click="export_Excel()" size="sm" variant="outline-danger ripple m-1" :disabled="exporting_excel">
+          <span v-if="exporting_excel" class="spinner-border spinner-border-sm mr-1"></span>
+          <i v-else class="i-File-Excel"></i> EXCEL
+        </b-button>
 
       </div>
         <template slot="table-row" slot-scope="props">
@@ -82,6 +93,8 @@ export default {
   data() {
     return {
       isLoading: true,
+      exporting_pdf: false,
+      exporting_excel: false,
       serverParams: {
         sort: {
           field: "id",
@@ -93,6 +106,11 @@ export default {
       limit: "10",
       totalRows: "",
       products: [],
+      rows: [{
+          code: 'Total',
+          children: [],
+      }],
+      excel_products: [],
       search_products:"",
       today_mode: true,
       startDate: "", 
@@ -136,14 +154,23 @@ export default {
         {
           label: this.$t("TotalSales"),
           field: "total_sales",
+          headerField: this.sumTotalSales,
           tdClass: "text-left",
           thClass: "text-left",
           sortable: false
         },
-
+        {
+          label: this.$t("Qty_sold"),
+          field: "qty",
+          headerField: this.sumQty,
+          tdClass: "text-left",
+          thClass: "text-left",
+          sortable: false
+        },
         {
           label: this.$t("TotalAmount"),
           field: "total",
+          headerField: this.sumTotalAmount,
           tdClass: "text-left",
           thClass: "text-left",
           sortable: false
@@ -155,50 +182,152 @@ export default {
   methods: {
 
      
+    sumTotalSales(rowObj) {
+      let sum = 0;
+      for (let i = 0; i < rowObj.children.length; i++) {
+        sum += parseFloat(rowObj.children[i].total_sales || 0);
+      }
+      return sum;
+    },
+    sumQty(rowObj) {
+      let sum = 0;
+      for (let i = 0; i < rowObj.children.length; i++) {
+        sum += parseFloat(rowObj.children[i].qty || 0);
+      }
+      return sum.toFixed(2);
+    },
+    sumTotalAmount(rowObj) {
+      let sum = 0;
+      for (let i = 0; i < rowObj.children.length; i++) {
+        sum += parseFloat(rowObj.children[i].total || 0);
+      }
+      return sum.toFixed(2);
+    },
+
     onSearch_products(value) {
       this.search_products = value.searchTerm;
       this.Get_top_products(1);
     },
 
-    //----------------------------------- Export PDF ------------------------------\\
+    //----------------------------- Export Excel ------------------------------\\
+    export_Excel() {
+      this.exporting_excel = true;
+      NProgress.start();
+      axios
+        .get(
+          "report/top_products?page=1&limit=-1&to=" +
+            this.endDate +
+            "&from=" +
+            this.startDate +
+            "&search=" +
+            this.search_products
+        )
+        .then(response => {
+          let all_products = response.data.products;
+          // Calculate sums
+          let totalSales = all_products.reduce((sum, p) => sum + parseFloat(p.total_sales || 0), 0);
+          let totalQty = all_products.reduce((sum, p) => sum + parseFloat(p.qty || 0), 0);
+          let totalAmount = all_products.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+
+          // Append totals row
+          all_products.push({
+            code: 'Total',
+            name: '',
+            total_sales: totalSales,
+            qty: totalQty,
+            total: totalAmount.toFixed(2)
+          });
+
+          this.excel_products = all_products;
+          this.$nextTick(() => {
+            this.$refs.excel_btn.$el.click();
+            NProgress.done();
+            this.exporting_excel = false;
+          });
+        })
+        .catch(() => {
+          NProgress.done();
+          this.exporting_excel = false;
+        });
+    },
+
     export_PDF() {
       var self = this;
-      let pdf = new jsPDF("p", "pt");
+      self.exporting_pdf = true;
+      NProgress.start();
+      axios
+        .get(
+          "report/top_products?page=1&limit=-1&to=" +
+            self.endDate +
+            "&from=" +
+            self.startDate +
+            "&search=" +
+            self.search_products
+        )
+        .then(response => {
+          let all_products = response.data.products;
 
-      const fontPath = "/fonts/Vazirmatn-Bold.ttf";
-      pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
-      pdf.setFont("VazirmatnBold"); 
-      
-      let columns = [
-        { title: self.$t("ProductCode"), dataKey: "code" },
-        { title: self.$t("ProductName"), dataKey: "name" },
-        { title: self.$t("TotalSales"), dataKey: "total_sales" },
-        { title: self.$t("TotalAmount"), dataKey: "total" },
-      ];
+          // Calculate totals
+          let totalSales = all_products.reduce((sum, p) => sum + parseFloat(p.total_sales || 0), 0);
+          let totalQty = all_products.reduce((sum, p) => sum + parseFloat(p.qty || 0), 0);
+          let totalAmount = all_products.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
 
-      pdf.autoTable({
-             columns: columns,
-             body: self.products,
-             startY: 70,
-             theme: "grid", 
-             didDrawPage: (data) => {
-               pdf.setFont("VazirmatnBold");
-               pdf.setFontSize(18);
-               pdf.text("Top Selling Products", 40, 25);   
-             },
-             styles: {
-               font: "VazirmatnBold", 
-               halign: "center", // 
-             },
-             headStyles: {
-               fillColor: [200, 200, 200], 
-               textColor: [0, 0, 0], 
-               fontStyle: "bold", 
-             },
+          let footer = [{
+            code: 'Total .....',
+            name: '',
+            total_sales: `${totalSales}`,
+            qty: `${totalQty.toFixed(2)}`,
+            total: `${totalAmount.toFixed(2)}`
+          }];
 
-      });
+          let pdf = new jsPDF("p", "pt");
+          const fontPath = "/fonts/Vazirmatn-Bold.ttf";
+          pdf.addFont(fontPath, "VazirmatnBold", "bold"); 
+          pdf.setFont("VazirmatnBold"); 
 
-      pdf.save("Top_Selling_Products.pdf");
+          let columns = [
+            { title: self.$t("ProductCode"), dataKey: "code" },
+            { title: self.$t("ProductName"), dataKey: "name" },
+            { title: self.$t("TotalSales"), dataKey: "total_sales" },
+            { title: self.$t("Qty_sold"), dataKey: "qty" },
+            { title: self.$t("TotalAmount"), dataKey: "total" },
+          ];
+
+          pdf.autoTable({
+            columns: columns,
+            body: all_products,
+            foot: footer,
+            startY: 70,
+            theme: "grid", 
+            didDrawPage: (data) => {
+              pdf.setFont("VazirmatnBold");
+              pdf.setFontSize(18);
+              pdf.text("Top Selling Products", 40, 25);   
+            },
+            styles: {
+              font: "VazirmatnBold", 
+              halign: "center", 
+            },
+            headStyles: {
+              fillColor: [200, 200, 200], 
+              textColor: [0, 0, 0], 
+              fontStyle: "bold", 
+            },
+            footStyles: {
+              fillColor: [200, 200, 200], 
+              textColor: [0, 0, 0], 
+              fontStyle: "bold", 
+            }
+          });
+
+          pdf.save("Top_Selling_Products.pdf");
+          NProgress.done();
+          self.exporting_pdf = false;
+        })
+        .catch(() => {
+          NProgress.done();
+          self.exporting_pdf = false;
+        });
     },
 
     //---- update Params Table
@@ -235,14 +364,14 @@ export default {
     get_data_loaded() {
       var self = this;
       if (self.today_mode) {
-        let startDate = new Date("01/01/2000");  // Set start date to "01/01/2000"
-        let endDate = new Date();  // Set end date to current date
+        let startDate = moment().startOf('month');
+        let endDate = moment().endOf('day');
 
-        self.startDate = startDate.toISOString();
-        self.endDate = endDate.toISOString();
+        self.startDate = startDate.format("YYYY-MM-DD");
+        self.endDate = endDate.format("YYYY-MM-DD");
 
-        self.dateRange.startDate = startDate.toISOString();
-        self.dateRange.endDate = endDate.toISOString();
+        self.dateRange.startDate = startDate.toDate();
+        self.dateRange.endDate = endDate.toDate();
       }
     },
 
@@ -269,6 +398,7 @@ export default {
         .then(response => {
           this.products = response.data.products;
           this.totalRows = response.data.totalRows;
+          this.rows[0].children = this.products;
           // Complete the animation of theprogress bar.
           NProgress.done();
           this.isLoading = false;
