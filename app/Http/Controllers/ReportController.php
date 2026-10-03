@@ -3911,7 +3911,9 @@ class ReportController extends BaseController
                     });
                 }
             })
-            ->whereBetween('date', array($request->from, $request->to));
+            ->when($request->filled('from') && $request->filled('to'), function ($query) use ($request) {
+                return $query->whereBetween('date', array($request->from, $request->to));
+            });
 
         // Filter
         $sale_details_Filtred = $sale_details_data->where(function ($query) use ($request) {
@@ -4010,10 +4012,10 @@ class ReportController extends BaseController
                 $productsVariants = ProductVariant::where('product_id', $detail->product_id)
                     ->where('id', $detail->product_variant_id)->first();
 
-                $product_name = '[' . $productsVariants->name . ']' . $detail['product']['name'];
+                $product_name = ($productsVariants ? '[' . $productsVariants->name . ']' : '') . ($detail->product ? $detail->product->name : ($detail->item_name ?: '---'));
 
             } else {
-                $product_name = $detail['product']['name'];
+                $product_name = $detail->product ? $detail->product->name : ($detail->item_name ?: '---');
             }
 
             $item['date'] = \Carbon\Carbon::parse($detail->date)->format('d-m-Y');

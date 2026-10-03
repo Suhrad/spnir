@@ -122,6 +122,15 @@ class SalesController extends BaseController
                             return $query->whereHas('warehouse', function ($q) use ($request) {
                                 $q->where('name', 'LIKE', "%{$request->search}%");
                             });
+                        })
+                        ->orWhere(function ($query) use ($request) {
+                            return $query->whereHas('details', function ($q) use ($request) {
+                                $q->where('item_name', 'LIKE', "%{$request->search}%")
+                                    ->orWhereHas('product', function ($qp) use ($request) {
+                                        $qp->where('name', 'LIKE', "%{$request->search}%")
+                                            ->orWhere('code', 'LIKE', "%{$request->search}%");
+                                    });
+                            });
                         });
                 });
             });
@@ -172,10 +181,10 @@ class SalesController extends BaseController
             $item['igst_amount'] = $Sale['igst_amount'];
             $item['total_quantity'] = $Sale->details->sum('quantity');
             $item['product_names'] = $Sale->details->map(function($detail){
-                return $detail->product ? $detail->product->name : '---';
+                return $detail->product ? $detail->product->name : ($detail->item_name ?: '---');
             })->unique()->implode(', ');
             $item['items'] = $Sale->details->map(function($detail){
-                return ($detail->product ? $detail->product->name : '---') . ' (' . $detail->quantity . ')';
+                return ($detail->product ? $detail->product->name : ($detail->item_name ?: '---')) . ' (' . $detail->quantity . ')';
             })->implode(', ');
 
             if (SaleReturn::where('sale_id', $Sale['id'])->where('deleted_at', '=', null)->exists()) {
@@ -1164,12 +1173,12 @@ class SalesController extends BaseController
                 $productsVariants = ProductVariant::where('product_id', $detail->product_id)
                     ->where('id', $detail->product_variant_id)->first();
 
-                $data['code'] = $productsVariants->code;
-                $data['name'] = '['.$productsVariants->name .']'. $detail['product']['name'];
+                $data['code'] = $productsVariants ? $productsVariants->code : ($detail->product ? $detail->product->code : '---');
+                $data['name'] = ($productsVariants ? '['.$productsVariants->name .']' : '') . ($detail->product ? $detail->product->name : ($detail->item_name ?: '---'));
  
             } else {
-                $data['code'] = $detail['product']['code'];
-                $data['name'] = $detail['product']['name'];
+                $data['code'] = $detail->product ? $detail->product->code : '---';
+                $data['name'] = $detail->product ? $detail->product->name : ($detail->item_name ?: '---');
             }
 
             $data['quantity'] = $detail->quantity;
