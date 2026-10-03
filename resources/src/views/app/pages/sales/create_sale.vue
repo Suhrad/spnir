@@ -127,7 +127,6 @@
                   <b-form-group label="LR:">
                     <b-form-input
                       v-model="sale.lr_number"
-                      @keyup="updateNote"
                       :placeholder="$t('Enter_LR_Number')"
                     ></b-form-input>
                   </b-form-group>
@@ -1238,7 +1237,6 @@ export default {
       } else {
         this.sale.transporter_name = "";
       }
-      this.updateNote();
     },
 
     Selected_Transport(value) {
@@ -1247,18 +1245,21 @@ export default {
       } else {
         this.sale.transporter_name = value;
       }
-      this.updateNote();
     },
 
     updateNote() {
-      let note = "";
       const warehouse = this.warehouses.find(w => w.id === this.sale.warehouse_id);
       let symbol = "NP";
       if (warehouse && warehouse.shortcut) {
         symbol = warehouse.shortcut;
       }
-      note += "Rate: " + symbol + ":";
-      this.sale.notes = note;
+      const newPrefix = "Rate: " + symbol + ":";
+
+      if (!this.sale.notes || !this.sale.notes.trim()) {
+        this.sale.notes = newPrefix;
+      } else if (/^Rate:\s*[^:]*:\s*/i.test(this.sale.notes)) {
+        this.sale.notes = this.sale.notes.replace(/^Rate:\s*[^:]*:\s*/i, newPrefix + " ");
+      }
     },
 
     getFilteredProducts(search) {
