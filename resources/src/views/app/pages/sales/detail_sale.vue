@@ -70,10 +70,11 @@
             <b-col lg="4" md="4" sm="12" class="mb-4">
               <h5 class="font-weight-bold">{{$t('Invoice_Info')}}</h5>
               <div>{{$t('Reference')}} : {{sale.Ref}}</div>
+              <div>{{$t('date')}} : {{sale.date | formatDate}}</div>
               <div v-if="sale.is_archive_import" class="mt-1">
                 <span class="badge badge-outline-info">SARAL Imported</span>
               </div>
-              <div v-if="sale.original_invoice_date">Original Date: {{sale.original_invoice_date}}</div>
+              <div v-if="sale.original_invoice_date">Original Date: {{sale.original_invoice_date | formatDate}}</div>
               <div v-if="sale.original_invoice_series || sale.original_invoice_number">
                 Original Ref: {{sale.original_invoice_series}} {{sale.original_invoice_number}}
               </div>
@@ -97,7 +98,7 @@
               <div v-if="sale.eway_bill_number">E-Way Bill: {{sale.eway_bill_number}}</div>
               <div v-if="sale.irn">IRN: {{sale.irn}}</div>
               <div v-if="sale.ack_number">Ack No: {{sale.ack_number}}</div>
-              <div v-if="sale.ack_date">Ack Date: {{sale.ack_date}}</div>
+              <div v-if="sale.ack_date">Ack Date: {{sale.ack_date | formatDate}}</div>
               <div>
                 {{$t('Status')}} :
                 <span

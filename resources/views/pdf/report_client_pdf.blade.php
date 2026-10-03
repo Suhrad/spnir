@@ -80,7 +80,7 @@
                 <tbody>
                    @foreach ($sales as $sale)
                    <tr>
-                      <td>{{$sale['date']}} </td>
+                      <td>{{ !empty($sale['date']) ? \Carbon\Carbon::parse($sale['date'])->format('d-m-Y') : '' }} </td>
                       <td>{{$sale['Ref']}}</td>
                       <td>{{$sale['warehouse']}}</td>
                       <td>{{$symbol}} {{$sale['GrandTotal']}}</td>

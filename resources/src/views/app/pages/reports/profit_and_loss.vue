@@ -210,7 +210,7 @@ export default {
       this.picker.drops = 'auto'; // lets it choose up/down to stay visible
     },
 
-    fmtDate(d){ return moment(d).format('YYYY-MM-DD'); },
+    fmtDate(d){ return moment(d).format('DD-MM-YYYY'); },
     num(v){ const n = parseFloat(v || 0); return isNaN(n)?0:n; },
     money(v){
       try { return new Intl.NumberFormat(undefined,{style:'currency',currency:this.currency}).format(this.num(v)); }
@@ -243,8 +243,8 @@ export default {
     fetchPnl(){
       NProgress.start(); NProgress.set(0.1);
       this.isLoading = true;
-      const from = this.fmtDate(this.dateRange.startDate);
-      const to   = this.fmtDate(this.dateRange.endDate);
+      const from = moment(this.dateRange.startDate).format('YYYY-MM-DD');
+      const to   = moment(this.dateRange.endDate).format('YYYY-MM-DD');
       const wh   = this.warehouse_id || '';
 
       axios.get(`report/profit_and_loss?from=${from}&to=${to}&warehouse_id=${wh}`)

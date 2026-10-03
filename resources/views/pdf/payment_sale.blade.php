@@ -12,7 +12,7 @@
          <img src="{{public_path('/images/'.$setting['logo'])}}">
          </div>
          <div id="company">
-            <div><strong> Date: </strong>{{$payment['date']}}</div>
+            <div><strong> Date: </strong>{{ !empty($payment['date']) ? \Carbon\Carbon::parse($payment['date'])->format('d-m-Y') : '' }}</div>
             <div><strong> Number: </strong> {{$payment['Ref']}}</div>
          </div>
          <div id="Title-heading">

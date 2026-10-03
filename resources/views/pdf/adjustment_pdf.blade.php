@@ -12,7 +12,7 @@
          <img src="{{public_path('/images/'.$setting['logo'])}}">
          </div>
          <div id="company">
-            <div><strong> Date : </strong>{{$adjustment['date']}}</div>
+            <div><strong> Date : </strong>{{ !empty($adjustment['date']) ? \Carbon\Carbon::parse($adjustment['date'])->format('d-m-Y') : '' }}</div>
             <div><strong> Number : </strong> {{$adjustment['Ref']}}</div>
             <div><strong> Warehouse : </strong> {{$adjustment['warehouse_name']}}</div>
 

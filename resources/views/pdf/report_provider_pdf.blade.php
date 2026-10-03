@@ -78,7 +78,7 @@
                <tbody>
                   @foreach ($purchases as $purchase)
                   <tr>
-                     <td>{{$purchase['date']}} </td>
+                     <td>{{ !empty($purchase['date']) ? \Carbon\Carbon::parse($purchase['date'])->format('d-m-Y') : '' }} </td>
                      <td>{{$purchase['Ref']}}</td>
                      <td>{{$symbol}} {{$purchase['paid_amount']}} </td>
                      <td>{{$symbol}} {{$purchase['due']}} </td>

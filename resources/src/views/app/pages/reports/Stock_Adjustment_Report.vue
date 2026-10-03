@@ -273,7 +273,8 @@ export default {
     onResize(){ this.isMobile = window.innerWidth < 768; },
 
     // ---- formatters
-    fmt(d){ return moment(d).format("YYYY-MM-DD"); },
+    fmt(d){ return moment(d).format("DD-MM-YYYY"); },
+    fmtApi(d){ return moment(d).format("YYYY-MM-DD"); },
     num(v){ const n = Number(v||0); return isNaN(n) ? "0" : n.toLocaleString(); },
     formatQty(v){ const n = Number(v||0); return isNaN(n) ? "0" : n.toLocaleString(undefined,{maximumFractionDigits:2}); },
     shortNumber(v){ return new Intl.NumberFormat(undefined,{notation:'compact',maximumFractionDigits:1}).format(Number(v||0)); },
@@ -295,8 +296,8 @@ export default {
       this.isLoading = true;
 
       const qs = new URLSearchParams({
-        from: this.fmt(this.dateRange.startDate),
-        to:   this.fmt(this.dateRange.endDate),
+        from: this.fmtApi(this.dateRange.startDate),
+        to:   this.fmtApi(this.dateRange.endDate),
         warehouse_id: this.warehouse_id || "",
         page: String(this.serverParams.page),
         limit: String(this.serverParams.perPage || this.limit),
@@ -421,8 +422,8 @@ export default {
 
       while (allRows.length < totalRows) {
         const qs = new URLSearchParams({
-          from: this.fmt(this.dateRange.startDate),
-          to:   this.fmt(this.dateRange.endDate),
+          from: this.fmtApi(this.dateRange.startDate),
+          to:   this.fmtApi(this.dateRange.endDate),
           warehouse_id: this.warehouse_id || "",
           page: String(page),
           limit: String(perPage),

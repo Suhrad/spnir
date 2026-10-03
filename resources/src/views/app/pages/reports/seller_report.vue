@@ -13,7 +13,7 @@
           :locale-data="locale" > 
 
           <template v-slot:input="picker" style="min-width: 350px;">
-              {{ picker.startDate.toJSON().slice(0, 10)}} - {{ picker.endDate.toJSON().slice(0, 10)}}
+              {{ picker.startDate | formatDate }} - {{ picker.endDate | formatDate }}
           </template> 
 
         </date-range-picker>

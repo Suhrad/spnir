@@ -48,7 +48,7 @@
         </div>
         
         <div class="period-info">
-            <div class="period-left">Period From : {{ Carbon\Carbon::parse($from)->format('d/m/Y') }} To {{ Carbon\Carbon::parse($to)->format('d/m/Y') }}</div>
+            <div class="period-left">Period From : {{ Carbon\Carbon::parse($from)->format('d-m-Y') }} To {{ Carbon\Carbon::parse($to)->format('d-m-Y') }}</div>
             <div class="period-right">Page.1</div>
         </div>
 

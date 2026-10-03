@@ -138,64 +138,168 @@ import '@trevoreyre/autocomplete-vue/dist/style.css';
 window.Fire = new Vue();
 
 import moment from "moment";
+import { jsPDF } from "jspdf";
+import autoTablePlugin from "jspdf-autotable";
 
-Vue.filter('formatDate', function(value) {
-  if (!value) return '';
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value;
-  const m = moment(value, ['YYYY-MM-DD', 'YYYY-MM-DD HH:mm:ss'], true);
-  return m.isValid() ? m.format('DD/MM/YYYY') : value;
-});
+function formatToDDMMYYYY(val) {
+  if (!val) return '';
+  if (typeof val === 'string') {
+    val = val.trim();
+    if (!val) return '';
+    if (/^\d{2}-\d{2}-\d{4}$/.test(val)) return val;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val.replace(/\//g, '-');
+  }
+  const m = moment(val, [
+    'YYYY-MM-DD',
+    'YYYY-MM-DD HH:mm:ss',
+    'YYYY-MM-DDTHH:mm:ss',
+    'YYYY-MM-DDTHH:mm:ss.SSSSSSZ',
+    'YYYY-MM-DDTHH:mm:ssZ',
+    'DD-MM-YYYY',
+    'DD/MM/YYYY',
+    'DD-MM-YYYY HH:mm:ss',
+    'DD/MM/YYYY HH:mm:ss'
+  ], false);
+  return m.isValid() ? m.format('DD-MM-YYYY') : val;
+}
 
-function formatColumns(cols, moment) {
+Vue.filter('formatDate', formatToDDMMYYYY);
+Vue.prototype.$formatDate = formatToDDMMYYYY;
+Vue.prototype.formatDate = formatToDDMMYYYY;
+
+function isDateColumn(col) {
+  if (!col) return false;
+  const fieldName = (col.field || col.key || '').toString().toLowerCase();
+  const labelName = (col.label || '').toString().toLowerCase();
+  return (
+    fieldName === 'date' ||
+    fieldName === 'start_date' ||
+    fieldName === 'end_date' ||
+    fieldName === 'date_time' ||
+    fieldName === 'invoice_date' ||
+    fieldName === 'original_invoice_date' ||
+    fieldName === 'ack_date' ||
+    fieldName === 'next_billing_date' ||
+    fieldName.includes('date') ||
+    fieldName.endsWith('_at') ||
+    labelName.includes('date')
+  );
+}
+
+function formatAnyColumns(cols) {
   if (Array.isArray(cols)) {
     cols.forEach(col => {
-      const isDateCol = col.field === 'date' || col.field === 'original_invoice_date' || col.field === 'ack_date' || col.field === 'invoice_date' || col.field === 'next_billing_date';
-      if (isDateCol && !col.formatFn) {
-        col.formatFn = (val) => {
-          if (!val) return '';
-          if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
-          const m = moment(val, ['YYYY-MM-DD', 'YYYY-MM-DD HH:mm:ss'], true);
-          return m.isValid() ? m.format('DD/MM/YYYY') : val;
-        };
+      if (col && typeof col === 'object' && isDateColumn(col)) {
+        col.formatFn = (val) => formatToDDMMYYYY(val);
+        if (!col.formatter) {
+          col.formatter = (val) => formatToDDMMYYYY(val);
+        }
       }
     });
   }
   return cols;
 }
 
+function processTarget(target) {
+  if (!target || typeof target !== 'object') return;
+  Object.keys(target).forEach(key => {
+    const k = key.toLowerCase();
+    if (k === 'columns' || k.includes('column') || k.includes('field')) {
+      if (Array.isArray(target[key])) {
+        formatAnyColumns(target[key]);
+      }
+    }
+  });
+}
+
+// Universal jsPDF autoTable hooking
+function hookAutoTableOptions(options) {
+  if (!options || typeof options !== 'object') return options;
+  const origDidParse = options.didParseCell;
+  options.didParseCell = function(data) {
+    if (origDidParse) origDidParse(data);
+    if (data && data.cell && data.section === 'body') {
+      const key = (data.column && (data.column.dataKey || data.column.raw || data.column.id) || '').toString().toLowerCase();
+      const raw = data.cell.raw != null ? String(data.cell.raw).trim() : (data.cell.text && data.cell.text[0] ? String(data.cell.text[0]).trim() : '');
+      const isDatePattern = /^\d{4}-\d{2}-\d{2}/.test(raw) || /^\d{2}\/\d{2}\/\d{4}/.test(raw);
+      const isDateKey = key === 'date' || key.includes('date') || key.endsWith('_at');
+      if ((isDatePattern || isDateKey) && raw) {
+        const formatted = formatToDDMMYYYY(raw);
+        if (formatted && formatted !== raw) {
+          data.cell.text = [formatted];
+        }
+      }
+    }
+  };
+  return options;
+}
+
+if (autoTablePlugin && autoTablePlugin.default) {
+  const origAutoTableFn = autoTablePlugin.default;
+  autoTablePlugin.default = function(doc, options, ...args) {
+    return origAutoTableFn.call(this, doc, hookAutoTableOptions(options), ...args);
+  };
+}
+
+if (jsPDF && jsPDF.API) {
+  const origApiAutoTable = jsPDF.API.autoTable;
+  jsPDF.API.autoTable = function(options, ...args) {
+    if (autoTablePlugin && autoTablePlugin.default) {
+      return autoTablePlugin.default(this, options, ...args);
+    }
+    return origApiAutoTable.call(this, hookAutoTableOptions(options), ...args);
+  };
+}
+
 Vue.mixin({
   beforeCreate() {
     const options = this.$options;
 
-    // 1. Wrap computed columns if it exists
-    if (options.computed && options.computed.columns) {
-      const originalComputedColumns = options.computed.columns;
-      options.computed.columns = function() {
-        const cols = originalComputedColumns.call(this);
-        return formatColumns(cols, moment);
-      };
+    // 1. Wrap computed properties
+    if (options.computed) {
+      Object.keys(options.computed).forEach(key => {
+        const k = key.toLowerCase();
+        if (k === 'columns' || k.includes('column') || k.includes('field')) {
+          const originalComputed = options.computed[key];
+          options.computed[key] = function() {
+            const res = originalComputed.call(this);
+            return Array.isArray(res) ? formatAnyColumns(res) : res;
+          };
+        }
+      });
     }
 
-    // 2. Wrap methods columns if it exists
-    if (options.methods && options.methods.columns) {
-      const originalMethodsColumns = options.methods.columns;
-      options.methods.columns = function() {
-        const cols = originalMethodsColumns.call(this);
-        return formatColumns(cols, moment);
-      };
+    // 2. Wrap methods
+    if (options.methods) {
+      Object.keys(options.methods).forEach(key => {
+        const k = key.toLowerCase();
+        if (k === 'columns' || k.includes('column') || k.includes('field')) {
+          const originalMethod = options.methods[key];
+          options.methods[key] = function(...args) {
+            const res = originalMethod.apply(this, args);
+            return Array.isArray(res) ? formatAnyColumns(res) : res;
+          };
+        }
+      });
     }
 
-    // 3. Wrap data function to intercept data columns
+    // 3. Wrap data function
     if (options.data) {
       const originalData = options.data;
       options.data = function() {
         const dataObj = typeof originalData === 'function' ? originalData.call(this) : originalData;
-        if (dataObj && dataObj.columns) {
-          dataObj.columns = formatColumns(dataObj.columns, moment);
+        if (dataObj && typeof dataObj === 'object') {
+          processTarget(dataObj);
+          if (dataObj.locale && typeof dataObj.locale === 'object') {
+            dataObj.locale.format = 'DD-MM-YYYY';
+          }
         }
         return dataObj;
       };
     }
+  },
+  created() {
+    processTarget(this);
   }
 });
 

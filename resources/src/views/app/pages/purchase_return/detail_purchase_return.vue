@@ -58,6 +58,7 @@
               <h5 class="font-weight-bold">{{$t('Return_Info')}}</h5>
 
               <div>{{$t('Reference')}} : {{purchase_return.Ref}}</div>
+              <div>{{$t('date')}} : {{purchase_return.date | formatDate}}</div>
               <div>{{$t('Purchase_Ref')}} : {{purchase_return.purchase_ref}}</div>
               <div>
                 {{$t('Status')}} :

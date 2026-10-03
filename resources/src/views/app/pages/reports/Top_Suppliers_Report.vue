@@ -266,7 +266,8 @@ export default {
   },
   methods:{
     // formatters
-    fmt(d){ return moment(d).format('YYYY-MM-DD'); },
+    fmt(d){ return moment(d).format('DD-MM-YYYY'); },
+    fmtApi(d){ return moment(d).format('YYYY-MM-DD'); },
     fmtShort(d){ return moment(d).format('MMM D'); },
     num(v){ const n = Number(v||0); return isNaN(n)?'0':n.toLocaleString(); },
     money(v){
@@ -307,8 +308,8 @@ export default {
     fetchReport(){
       NProgress.start(); NProgress.set(0.1); this.isLoading=true;
       const qs = new URLSearchParams({
-        from:this.fmt(this.dateRange.startDate),
-        to:this.fmt(this.dateRange.endDate),
+        from:this.fmtApi(this.dateRange.startDate),
+        to:this.fmtApi(this.dateRange.endDate),
         warehouse_id:this.warehouse_id || '',
         page:String(this.serverParams.page),
         limit:String(this.serverParams.perPage || this.limit),
@@ -337,8 +338,8 @@ export default {
 
         // Fetch ALL rows using current filters/sort
         const qs = new URLSearchParams({
-          from: this.fmt(this.dateRange.startDate),
-          to:   this.fmt(this.dateRange.endDate),
+          from: this.fmtApi(this.dateRange.startDate),
+          to:   this.fmtApi(this.dateRange.endDate),
           warehouse_id: this.warehouse_id || '',
           page: '1',
           limit: '100000', // export all

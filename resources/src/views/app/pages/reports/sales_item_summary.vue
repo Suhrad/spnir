@@ -221,7 +221,7 @@ export default {
   methods: {
     formatDate(date) {
       if (!date) return "";
-      return moment(date).format("DD/MM/YYYY");
+      return moment(date).format("DD-MM-YYYY");
     },
 
     formatDecimal(value) {

@@ -35,7 +35,7 @@
             <img src="{{public_path('/images/'.$setting['logo'])}}">
          </div>
          <div id="company">
-            <div><strong>Date:</strong> {{$transfer['date']}}</div>
+            <div><strong>Date:</strong> {{ !empty($transfer['date']) ? \Carbon\Carbon::parse($transfer['date'])->format('d-m-Y') : '' }}</div>
             <div><strong>Number:</strong> {{$transfer['Ref']}}</div>
             <div><strong>From:</strong> {{$transfer['from_warehouse']}}</div>
             <div><strong>To:</strong> {{$transfer['to_warehouse']}}</div>

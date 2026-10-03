@@ -64,6 +64,7 @@
             <b-col lg="4" md="4" sm="12" class="mb-4">
               <h5 class="font-weight-bold">{{$t('Purchase_Info')}}</h5>
               <div>{{$t('Reference')}} : {{purchase.Ref}}</div>
+              <div>{{$t('date')}} : {{purchase.date | formatDate}}</div>
               <div>
                 {{$t('Status')}} :
                 <span

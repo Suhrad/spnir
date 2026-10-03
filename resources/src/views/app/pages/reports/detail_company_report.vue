@@ -427,7 +427,7 @@
                   </thead>
                   <tbody>
                     <tr v-if="ledger_data_loaded">
-                      <td class="text-center">{{ period.start }}</td>
+                      <td class="text-center">{{ period.start | formatDate }}</td>
                       <td class="text-center">-</td>
                       <td class="text-center">-</td>
                       <td><strong>Opening Balance</strong></td>
@@ -438,7 +438,7 @@
                       </td>
                     </tr>
                     <tr v-for="row in ledger" :key="row.timestamp">
-                      <td class="text-center">{{ row.date }}</td>
+                      <td class="text-center">{{ row.date | formatDate }}</td>
                       <td class="text-center">{{ row.book }}</td>
                       <td class="text-center">{{ row.ref }}</td>
                       <td style="white-space: pre-line;">{{ row.particulars }}</td>

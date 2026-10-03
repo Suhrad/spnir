@@ -12,7 +12,7 @@
          <img src="{{public_path('/images/'.$setting['logo'])}}">
          </div>
          <div id="company">
-            <div><strong> Date: </strong>{{$quote['date']}}</div>
+            <div><strong> Date: </strong>{{ !empty($quote['date']) ? \Carbon\Carbon::parse($quote['date'])->format('d-m-Y') : '' }}</div>
             <div><strong> Number: </strong> {{$quote['Ref']}}</div>
             <div><strong> Status: </strong> {{$quote['statut']}}</div>
          </div>

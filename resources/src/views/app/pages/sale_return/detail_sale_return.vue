@@ -59,6 +59,7 @@
               <h5 class="font-weight-bold">{{$t('Return_Info')}}</h5>
 
               <div>{{$t('Reference')}} : {{sale_return.Ref}}</div>
+              <div>{{$t('date')}} : {{sale_return.date | formatDate}}</div>
               <div>{{$t('Sale_Ref')}} : {{sale_return.sale_ref}}</div>
               <div>
                 {{$t('PaymentStatus')}} :

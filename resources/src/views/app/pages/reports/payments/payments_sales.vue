@@ -421,7 +421,8 @@ export default {
 
   methods: {
     // ---------- utils ----------
-    fmt(d){ return moment(d).format("YYYY-MM-DD"); },
+    fmt(d){ return moment(d).format("DD-MM-YYYY"); },
+    fmtApi(d){ return moment(d).format("YYYY-MM-DD"); },
     sumCount(rowObj){
       let sum = 0;
       if (rowObj && Array.isArray(rowObj.children)) {
@@ -490,8 +491,8 @@ export default {
       const sale_id    = this.Filter_sale    || '';
       const method_id  = this.Filter_Reg     || '';
       const ref        = this.Filter_Ref     || '';
-      const from       = this.fmt(this.dateRange.startDate);
-      const to         = this.fmt(this.dateRange.endDate);
+      const from       = this.fmtApi(this.dateRange.startDate);
+      const to         = this.fmtApi(this.dateRange.endDate);
 
       const url = "payment_sale?" + new URLSearchParams({
         page: String(page),
@@ -557,8 +558,8 @@ export default {
       const sale_id    = this.Filter_sale    || '';
       const method_id  = this.Filter_Reg     || '';
       const ref        = this.Filter_Ref     || '';
-      const from       = this.fmt(this.dateRange.startDate);
-      const to         = this.fmt(this.dateRange.endDate);
+      const from       = this.fmtApi(this.dateRange.startDate);
+      const to         = this.fmtApi(this.dateRange.endDate);
 
       const url = "payment_sale?" + new URLSearchParams({
         page: '1',

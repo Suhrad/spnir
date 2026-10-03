@@ -70,7 +70,7 @@
             <tr v-for="invoice in preview.preview_invoices" :key="invoice.row_number">
               <td>{{ invoice.row_number }}</td>
               <td>{{ invoice.party_name }}</td>
-              <td>{{ invoice.invoice_date }}</td>
+              <td>{{ invoice.invoice_date | formatDate }}</td>
               <td>{{ formatMoney(invoice.invoice_value) }}</td>
               <td>
                 <span v-if="invoice.customer_match">

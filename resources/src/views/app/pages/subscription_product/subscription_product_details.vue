@@ -68,7 +68,7 @@
         </template>
 
         <template #cell(date)="data">
-          <i class="i-Calendar text-warning"></i> {{ data.item.date }}
+          <i class="i-Calendar text-warning"></i> {{ data.item.date | formatDate }}
         </template>
 
         <template #cell(total)="data">

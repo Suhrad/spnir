@@ -1067,6 +1067,10 @@ export default {
   methods: {
 
     fmt(d) {
+      return moment(d).format("DD-MM-YYYY");
+    },
+
+    fmtApi(d) {
       return moment(d).format("YYYY-MM-DD");
     },
 
@@ -1075,8 +1079,8 @@ export default {
       NProgress.set(0.1);
       
       const warehouse = this.Filter_warehouse !== null ? this.Filter_warehouse : "";
-      const from = this.fmt(this.dateRange.startDate);
-      const to = this.fmt(this.dateRange.endDate);
+      const from = this.fmtApi(this.dateRange.startDate);
+      const to = this.fmtApi(this.dateRange.endDate);
 
       axios
         .get(`report/sales_item_summary_pdf?warehouse_id=${warehouse}&from=${from}&to=${to}`, {

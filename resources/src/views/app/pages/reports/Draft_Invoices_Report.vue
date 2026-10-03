@@ -204,7 +204,8 @@ export default {
     handleResize(){ this.isMobile = window.innerWidth < 576; },
 
     // formatters
-    fmt(d){ return moment(d).format("YYYY-MM-DD"); },
+    fmt(d){ return moment(d).format("DD-MM-YYYY"); },
+    fmtApi(d){ return moment(d).format("YYYY-MM-DD"); },
     fmtShort(d){ return moment(d).format("MMM D"); },
     money(v){
       const n = Number(v||0);
@@ -254,8 +255,8 @@ export default {
 
         // Fetch ALL rows with current filters/sort
         const qs = new URLSearchParams({
-          from: this.fmt(this.dateRange.startDate),
-          to:   this.fmt(this.dateRange.endDate),
+          from: this.fmtApi(this.dateRange.startDate),
+          to:   this.fmtApi(this.dateRange.endDate),
           warehouse_id: this.warehouse_id || '',
           limit: '-1', // all
           SortField: this.serverParams?.sort?.field || 'age_days',
@@ -377,8 +378,8 @@ export default {
         "&SortType=" + encodeURIComponent(this.serverParams.sort.type) +
         "&search=" + encodeURIComponent(this.search || "") +
         "&limit=" + encodeURIComponent(this.serverParams.perPage || this.limit) +
-        "&from=" + encodeURIComponent(this.fmt(this.dateRange.startDate)) +
-        "&to=" + encodeURIComponent(this.fmt(this.dateRange.endDate)) +
+        "&from=" + encodeURIComponent(this.fmtApi(this.dateRange.startDate)) +
+        "&to=" + encodeURIComponent(this.fmtApi(this.dateRange.endDate)) +
         (this.warehouse_id ? "&warehouse_id=" + encodeURIComponent(this.warehouse_id) : "");
 
       axios.get("report/draft_invoices?" + params)

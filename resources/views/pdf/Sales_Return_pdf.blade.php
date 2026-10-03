@@ -12,7 +12,7 @@
          <img src="{{public_path('/images/'.$setting['logo'])}}">
          </div>
          <div id="company">
-            <div><strong> Date : </strong>{{$return_sale['date']}}</div>
+            <div><strong> Date : </strong>{{ !empty($return_sale['date']) ? \Carbon\Carbon::parse($return_sale['date'])->format('d-m-Y') : '' }}</div>
             <div><strong> Number : </strong> {{$return_sale['Ref']}}</div>
             <div><strong> Sale Ref : </strong> {{$return_sale['sale_ref']}}</div>
             <div><strong> Status : </strong> {{$return_sale['statut']}}</div>

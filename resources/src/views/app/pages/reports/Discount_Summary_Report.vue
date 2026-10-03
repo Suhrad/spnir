@@ -236,7 +236,8 @@ export default {
   },
 
   methods: {
-    fmt(d){ return moment(d).format('YYYY-MM-DD'); },
+    fmt(d){ return moment(d).format('DD-MM-YYYY'); },
+    fmtApi(d){ return moment(d).format('YYYY-MM-DD'); },
     fmtShort(d){ return moment(d).format('MMM D'); },
     handleResize() { this.isMobile = window.innerWidth < 576; },
     money(v){
@@ -362,8 +363,8 @@ export default {
       NProgress.start(); NProgress.set(0.1); this.isLoading = true;
 
       const qs = new URLSearchParams({
-        from: this.fmt(this.dateRange.startDate),
-        to:   this.fmt(this.dateRange.endDate),
+        from: this.fmtApi(this.dateRange.startDate),
+        to:   this.fmtApi(this.dateRange.endDate),
         page: String(this.serverParams.page),
         limit: String(this.serverParams.perPage || this.limit),
         SortField: this.serverParams.sort?.field || 'date_time',

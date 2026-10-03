@@ -154,7 +154,7 @@ export default {
         endDate: moment().toDate()
       },
       locale: {
-        format: 'YYYY-MM-DD',
+        format: 'DD-MM-YYYY',
       },
       page: 1,
       limit: 10,
@@ -178,7 +178,7 @@ export default {
   },
   filters: {
     formatDate(val) {
-      return moment(val).format('YYYY-MM-DD');
+      return moment(val).format('DD-MM-YYYY');
     }
   },
   methods: {
@@ -260,7 +260,7 @@ export default {
           // Filters
           doc.setFont('Vazirmatn','normal'); doc.setFontSize(10);
           const warehouseLabel = this.warehouse_id ? (this.warehouses.find(w => w.id === this.warehouse_id)?.name || 'All') : 'All';
-          const range = `${moment(this.dateRange.startDate).format('YYYY-MM-DD')} — ${moment(this.dateRange.endDate).format('YYYY-MM-DD')}`;
+          const range = `${moment(this.dateRange.startDate).format('DD-MM-YYYY')} — ${moment(this.dateRange.endDate).format('DD-MM-YYYY')}`;
           doc.text(`Warehouse: ${warehouseLabel}   •   Date Range: ${range}`, margin, 58);
 
           const head = [[

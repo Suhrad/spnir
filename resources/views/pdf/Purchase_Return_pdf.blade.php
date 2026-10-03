@@ -12,7 +12,7 @@
          <img src="{{public_path('/images/'.$setting['logo'])}}">
          </div>
          <div id="company">
-            <div><strong> Date: </strong>{{$return_purchase['date']}}</div>
+            <div><strong> Date: </strong>{{ !empty($return_purchase['date']) ? \Carbon\Carbon::parse($return_purchase['date'])->format('d-m-Y') : '' }}</div>
             <div><strong> Number: </strong> {{$return_purchase['Ref']}}</div>
             <div><strong> Purchase Ref: </strong> {{$return_purchase['purchase_ref']}}</div>
             <div><strong> Status: </strong> {{$return_purchase['statut']}}</div>

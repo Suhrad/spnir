@@ -4016,7 +4016,7 @@ class ReportController extends BaseController
                 $product_name = $detail['product']['name'];
             }
 
-            $item['date'] = \Carbon\Carbon::parse($detail->date)->format('d/m/Y');
+            $item['date'] = \Carbon\Carbon::parse($detail->date)->format('d-m-Y');
             $item['Ref'] = $detail['sale']->Ref;
             $item['client_name'] = $detail['sale']['client']->name;
             $item['warehouse_name'] = $detail['sale']['warehouse']->name;

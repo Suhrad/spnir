@@ -342,7 +342,7 @@ export default {
     }
   },
   methods: {
-    fmt(d){ return moment(d).format("YYYY-MM-DD"); },
+    fmt(d){ return moment(d).format("DD-MM-YYYY"); },
 
     // Quick ranges
     quick(key){

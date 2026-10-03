@@ -299,7 +299,8 @@ export default {
     // responsive flag
     onResize(){ this.isMobile = window.innerWidth < 768; },
 
-    fmt(d){ return moment(d).format('YYYY-MM-DD'); },
+    fmt(d){ return moment(d).format('DD-MM-YYYY'); },
+    fmtApi(d){ return moment(d).format('YYYY-MM-DD'); },
     fmtShort(d){ return moment(d).format('MMM D'); },
     num(v){ const n = parseFloat(v||0); return isNaN(n)?0:n; },
     money(v){
@@ -359,8 +360,8 @@ export default {
         ? this.serverParams.sort.type : 'desc';
 
       const qs = new URLSearchParams({
-        from: this.fmt(this.dateRange.startDate),
-        to:   this.fmt(this.dateRange.endDate),
+        from: this.fmtApi(this.dateRange.startDate),
+        to:   this.fmtApi(this.dateRange.endDate),
         warehouse_id: this.warehouse_id || '',
         direction: this.direction,
         page: String(this.serverParams.page),
@@ -516,8 +517,8 @@ export default {
           ? this.serverParams.sort.type : 'desc';
 
         const qs = new URLSearchParams({
-          from: this.fmt(this.dateRange.startDate),
-          to:   this.fmt(this.dateRange.endDate),
+          from: this.fmtApi(this.dateRange.startDate),
+          to:   this.fmtApi(this.dateRange.endDate),
           warehouse_id: this.warehouse_id || '',
           direction: this.direction,
           page: String(page),

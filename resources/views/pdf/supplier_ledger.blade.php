@@ -88,7 +88,7 @@
             <tbody>
                 <!-- OPENING BALANCE ROW -->
                 <tr>
-                    <td class="text-center">{{ Carbon\Carbon::parse($period['start'])->format('d-m-y') }}</td>
+                    <td class="text-center">{{ Carbon\Carbon::parse($period['start'])->format('d-m-Y') }}</td>
                     <td class="text-center">-</td>
                     <td class="text-center">-</td>
                     <td class="font-bold">Opening Balance</td>
@@ -110,7 +110,7 @@
                         $total_credit += $row['credit'];
                     @endphp
                     <tr>
-                        <td class="text-center">{{ Carbon\Carbon::parse($row['date'])->format('d-m-y') }}</td>
+                        <td class="text-center">{{ Carbon\Carbon::parse($row['date'])->format('d-m-Y') }}</td>
                         <td class="text-center">{{ $row['book'] }}</td>
                         <td class="text-center">{{ $row['warehouse'] }}</td>
                         <td class="particulars-cell">{{ $row['particulars'] }}</td>

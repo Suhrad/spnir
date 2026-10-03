@@ -470,7 +470,8 @@ export default {
   },
 
   methods: {
-    fmt(d){ return moment(d).format("YYYY-MM-DD"); },
+    fmt(d){ return moment(d).format("DD-MM-YYYY"); },
+    fmtApi(d){ return moment(d).format("YYYY-MM-DD"); },
 
     sumCount(rowObj) {
       let sum = 0;
@@ -650,8 +651,8 @@ export default {
     },
 
     fetch_all_payments() {
-      const from = this.startDate || this.fmt(this.dateRange?.startDate);
-      const to   = this.endDate   || this.fmt(this.dateRange?.endDate);
+      const from = this.startDate || this.fmtApi(this.dateRange?.startDate);
+      const to   = this.endDate   || this.fmtApi(this.dateRange?.endDate);
 
       const qs = new URLSearchParams({
         page: '1',
@@ -838,8 +839,8 @@ export default {
         "&SortType=" + encodeURIComponent(this.serverParams.sort.type) +
         "&search=" + encodeURIComponent(this.search || "") +
         "&limit=" + encodeURIComponent(this.limit) +
-        "&to=" + encodeURIComponent(this.fmt(this.dateRange.endDate)) +
-        "&from=" + encodeURIComponent(this.fmt(this.dateRange.startDate));
+        "&to=" + encodeURIComponent(this.fmtApi(this.dateRange.endDate)) +
+        "&from=" + encodeURIComponent(this.fmtApi(this.dateRange.startDate));
 
       axios.get("payment_purchase?" + params)
         .then(({data}) => {
