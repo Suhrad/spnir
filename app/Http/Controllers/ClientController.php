@@ -54,6 +54,7 @@ class ClientController extends BaseController
             'gst_type' => $request->input('gst_type'),
             'contact_person' => $request->input('contact_person'),
             'state_code' => $request->input('state_code'),
+            'preferred_transport' => $request->input('preferred_transport'),
             'source_system' => $request->input('source_system', 'stocky'),
             'opening_balance' => $request->input('opening_balance', 0),
             'opening_balance_type' => $request->input('opening_balance_type', 'Dr'),

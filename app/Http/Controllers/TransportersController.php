@@ -54,13 +54,13 @@ class TransportersController extends Controller
             'name' => 'required',
         ]);
 
-        Transporter::create([
+        $transporter = Transporter::create([
             'name' => $request['name'],
             'phone' => $request['phone'],
             'address' => $request['address'],
         ]);
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'transporter' => $transporter]);
     }
 
     public function update(Request $request, $id)

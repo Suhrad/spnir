@@ -43,7 +43,22 @@
                 <!-- Customer -->
                 <b-col lg="4" md="4" sm="12" class="mb-3">
                   <validation-provider name="Customer" :rules="{ required: true}">
-                    <b-form-group slot-scope="{ valid, errors }" :label="$t('Customer') + ' ' + '*'">
+                    <b-form-group slot-scope="{ valid, errors }">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="mb-0 font-weight-bold">{{$t('Customer')}} *</label>
+                        <b-button
+                          v-if="!isReadOnly"
+                          variant="outline-primary"
+                          size="sm"
+                          class="py-0 px-2 font-weight-bold"
+                          style="font-size: 0.85rem;"
+                          @click="openQuickCustomerModal"
+                          v-b-tooltip.hover
+                          title="Shortcut: Alt + P"
+                        >
+                          <i class="i-Add"></i> + Party (Alt+P)
+                        </b-button>
+                      </div>
                       <v-select
                         :disabled="isReadOnly"
                         :class="{'is-invalid': !!errors.length}"
@@ -80,13 +95,32 @@
 
                 <!-- Transport -->
                 <b-col lg="4" md="4" sm="12" class="mb-3">
-                  <b-form-group :label="$t('Transport')">
+                  <b-form-group>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <label class="mb-0 font-weight-bold">{{$t('Transport')}}</label>
+                      <b-button
+                        v-if="!isReadOnly"
+                        variant="outline-primary"
+                        size="sm"
+                        class="py-0 px-2 font-weight-bold"
+                        style="font-size: 0.85rem;"
+                        @click="openQuickTransporterModal"
+                        v-b-tooltip.hover
+                        title="Shortcut: Alt + T"
+                      >
+                        <i class="i-Add"></i> + Transport (Alt+T)
+                      </b-button>
+                    </div>
                     <v-select
                       :disabled="isReadOnly"
                       v-model="sale.transporter_name"
                       @input="Selected_Transport"
+                      :taggable="!isReadOnly"
+                      :push-tags="true"
+                      :create-option="opt => ({ label: opt, value: opt })"
+                      @tag="handleQuickTagTransport"
                       :reduce="label => label.value"
-                      :placeholder="$t('Choose_Transport')"
+                      :placeholder="$t('Choose_Transport') + ' (type & Enter to add)'"
                       :options="transporterOptions"
                     />
                   </b-form-group>
@@ -431,6 +465,184 @@
         </b-form>
       </b-modal>
     </validation-observer>
+
+    <!-- Quick Add Customer / Party Modal -->
+    <validation-observer ref="quick_party_observer">
+      <b-modal
+        hide-footer
+        size="lg"
+        id="modal_quick_party"
+        title="Quick Add Party (Alt+P)"
+        @shown="onQuickPartyShown"
+        @hidden="onQuickPartyHidden"
+      >
+        <b-form @submit.prevent="submitQuickParty">
+          <b-row>
+            <!-- Party / Customer Name -->
+            <b-col md="6" sm="12">
+              <validation-provider
+                name="Party Name"
+                :rules="{ required: true }"
+                v-slot="validationContext"
+              >
+                <b-form-group :label="$t('CustomerName') + ' *'">
+                  <b-form-input
+                    ref="quick_party_name_input"
+                    v-model="quick_party.name"
+                    :state="getValidationState(validationContext)"
+                    placeholder="Enter Party / Customer Name"
+                    autofocus
+                  ></b-form-input>
+                  <b-form-invalid-feedback>{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Phone -->
+            <b-col md="6" sm="12">
+              <b-form-group :label="$t('Phone')">
+                <b-form-input
+                  v-model="quick_party.phone"
+                  placeholder="Enter Phone Number"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
+            <!-- GSTIN -->
+            <b-col md="6" sm="12">
+              <b-form-group label="GSTIN">
+                <b-form-input
+                  v-model="quick_party.gstin"
+                  placeholder="Enter GSTIN"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
+            <!-- City -->
+            <b-col md="6" sm="12">
+              <b-form-group :label="$t('City')">
+                <b-form-input
+                  v-model="quick_party.city"
+                  placeholder="Enter City"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
+            <!-- State -->
+            <b-col md="6" sm="12">
+              <b-form-group label="State">
+                <b-form-input
+                  v-model="quick_party.state"
+                  placeholder="Enter State"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
+            <!-- Preferred Transport -->
+            <b-col md="6" sm="12">
+              <b-form-group label="Preferred Transport">
+                <v-select
+                  v-model="quick_party.preferred_transport"
+                  :reduce="label => label.value"
+                  :options="transporterOptions"
+                  placeholder="Choose Preferred Transport"
+                />
+              </b-form-group>
+            </b-col>
+
+            <!-- Address -->
+            <b-col md="12">
+              <b-form-group :label="$t('Address')">
+                <b-form-textarea
+                  v-model="quick_party.adresse"
+                  rows="2"
+                  placeholder="Enter Address"
+                ></b-form-textarea>
+              </b-form-group>
+            </b-col>
+
+            <b-col md="12" class="d-flex justify-content-end mt-2">
+              <b-button variant="outline-secondary" class="mr-2" @click="$bvModal.hide('modal_quick_party')">
+                {{$t('Cancel')}}
+              </b-button>
+              <b-button variant="primary" type="submit" :disabled="quick_party_submitting">
+                <i class="i-Yes me-2 font-weight-bold"></i>
+                <span v-if="!quick_party_submitting">Save & Select</span>
+                <span v-else>Saving...</span>
+              </b-button>
+            </b-col>
+          </b-row>
+        </b-form>
+      </b-modal>
+    </validation-observer>
+
+    <!-- Quick Add Transport Modal -->
+    <validation-observer ref="quick_transport_observer">
+      <b-modal
+        hide-footer
+        size="md"
+        id="modal_quick_transport"
+        title="Quick Add Transport (Alt+T)"
+        @shown="onQuickTransportShown"
+        @hidden="onQuickTransportHidden"
+      >
+        <b-form @submit.prevent="submitQuickTransport">
+          <b-row>
+            <!-- Transport Name -->
+            <b-col md="12">
+              <validation-provider
+                name="Transport Name"
+                :rules="{ required: true }"
+                v-slot="validationContext"
+              >
+                <b-form-group label="Transport Name *">
+                  <b-form-input
+                    ref="quick_transport_name_input"
+                    v-model="quick_transport.name"
+                    :state="getValidationState(validationContext)"
+                    placeholder="Enter Transport / Transporter Name"
+                    autofocus
+                  ></b-form-input>
+                  <b-form-invalid-feedback>{{ validationContext.errors[0] }}</b-form-invalid-feedback>
+                </b-form-group>
+              </validation-provider>
+            </b-col>
+
+            <!-- Phone -->
+            <b-col md="12">
+              <b-form-group :label="$t('Phone')">
+                <b-form-input
+                  v-model="quick_transport.phone"
+                  placeholder="Enter Phone Number"
+                ></b-form-input>
+              </b-form-group>
+            </b-col>
+
+            <!-- Address -->
+            <b-col md="12">
+              <b-form-group :label="$t('Address')">
+                <b-form-textarea
+                  v-model="quick_transport.address"
+                  rows="2"
+                  placeholder="Enter Address"
+                ></b-form-textarea>
+              </b-form-group>
+            </b-col>
+
+            <b-col md="12" class="d-flex justify-content-end mt-2">
+              <b-button variant="outline-secondary" class="mr-2" @click="$bvModal.hide('modal_quick_transport')">
+                {{$t('Cancel')}}
+              </b-button>
+              <b-button variant="primary" type="submit" :disabled="quick_transport_submitting">
+                <i class="i-Yes me-2 font-weight-bold"></i>
+                <span v-if="!quick_transport_submitting">Save & Select</span>
+                <span v-else>Saving...</span>
+              </b-button>
+            </b-col>
+          </b-row>
+        </b-form>
+      </b-modal>
+    </validation-observer>
   </div>
 </template>
 
@@ -454,6 +666,24 @@ export default {
       Submit_Processing_detail:false,
       selectedProductId: null,
       quickProductSearch: "",
+      quick_party_open: false,
+      quick_party_submitting: false,
+      quick_party: {
+        name: "",
+        phone: "",
+        gstin: "",
+        city: "",
+        state: "",
+        adresse: "",
+        preferred_transport: ""
+      },
+      quick_transport_open: false,
+      quick_transport_submitting: false,
+      quick_transport: {
+        name: "",
+        phone: "",
+        address: ""
+      },
       warehouses: [],
       clients: [],
       products: [],
@@ -1260,11 +1490,144 @@ export default {
           setTimeout(() => NProgress.done(), 500);
         });
     },
+
+    openQuickCustomerModal() {
+      this.quick_party = {
+        name: "",
+        phone: "",
+        gstin: "",
+        city: "",
+        state: "",
+        adresse: "",
+        preferred_transport: ""
+      };
+      this.$bvModal.show('modal_quick_party');
+    },
+
+    onQuickPartyShown() {
+      this.quick_party_open = true;
+      if (this.$refs.quick_party_name_input) {
+        this.$refs.quick_party_name_input.focus();
+      }
+    },
+
+    onQuickPartyHidden() {
+      this.quick_party_open = false;
+    },
+
+    submitQuickParty() {
+      this.$refs.quick_party_observer.validate().then(success => {
+        if (!success) return;
+        this.quick_party_submitting = true;
+        axios
+          .post("clients", this.quick_party)
+          .then(response => {
+            const newClient = response.data;
+            this.clients.unshift(newClient);
+            this.sale.client_id = newClient.id;
+            this.Selected_Customer(newClient.id);
+            this.$bvModal.hide('modal_quick_party');
+            this.makeToast("success", "Party added and selected!", this.$t("Success"));
+            this.quick_party_submitting = false;
+          })
+          .catch(error => {
+            this.quick_party_submitting = false;
+            this.makeToast("danger", this.$t("InvalidData"), this.$t("Failed"));
+          });
+      });
+    },
+
+    openQuickTransporterModal() {
+      this.quick_transport = {
+        name: "",
+        phone: "",
+        address: ""
+      };
+      this.$bvModal.show('modal_quick_transport');
+    },
+
+    onQuickTransportShown() {
+      this.quick_transport_open = true;
+      if (this.$refs.quick_transport_name_input) {
+        this.$refs.quick_transport_name_input.focus();
+      }
+    },
+
+    onQuickTransportHidden() {
+      this.quick_transport_open = false;
+    },
+
+    submitQuickTransport() {
+      this.$refs.quick_transport_observer.validate().then(success => {
+        if (!success) return;
+        this.quick_transport_submitting = true;
+        axios
+          .post("transporters", this.quick_transport)
+          .then(response => {
+            const newTransporter = (response.data && response.data.transporter) ? response.data.transporter : { name: this.quick_transport.name };
+            this.transporters.unshift(newTransporter);
+            this.sale.transporter_name = newTransporter.name;
+            this.Selected_Transport(newTransporter.name);
+            this.$bvModal.hide('modal_quick_transport');
+            this.makeToast("success", "Transport added and selected!", this.$t("Success"));
+            this.quick_transport_submitting = false;
+          })
+          .catch(error => {
+            this.quick_transport_submitting = false;
+            this.makeToast("danger", this.$t("InvalidData"), this.$t("Failed"));
+          });
+      });
+    },
+
+    handleQuickTagTransport(newTransportName) {
+      if (!newTransportName || !newTransportName.trim()) return;
+      const trimmed = newTransportName.trim();
+      const existing = this.transporters.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
+      if (!existing) {
+        axios
+          .post("transporters", { name: trimmed })
+          .then(response => {
+            const created = (response.data && response.data.transporter) ? response.data.transporter : { name: trimmed };
+            this.transporters.unshift(created);
+            this.sale.transporter_name = trimmed;
+            this.Selected_Transport(trimmed);
+            this.makeToast("success", "Transport '" + trimmed + "' saved & selected!", this.$t("Success"));
+          })
+          .catch(error => {
+            this.sale.transporter_name = trimmed;
+            this.Selected_Transport(trimmed);
+          });
+      } else {
+        this.sale.transporter_name = existing.name;
+        this.Selected_Transport(existing.name);
+      }
+    },
+
+    handleSalesKeydown(e) {
+      if (this.isReadOnly || this.quick_party_open || this.quick_transport_open) {
+        return;
+      }
+      if (e.altKey && (e.key === 'p' || e.key === 'P' || e.code === 'KeyP')) {
+        e.preventDefault();
+        this.openQuickCustomerModal();
+      } else if (e.altKey && (e.key === 't' || e.key === 'T' || e.code === 'KeyT')) {
+        e.preventDefault();
+        this.openQuickTransporterModal();
+      }
+    }
   },
 
   //----------------------------- Created function-------------------
   created() {
     this.GetElements();
+  },
+
+  mounted() {
+    window.addEventListener("keydown", this.handleSalesKeydown);
+  },
+
+  beforeDestroy() {
+    window.removeEventListener("keydown", this.handleSalesKeydown);
   }
 };
 </script>
