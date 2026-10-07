@@ -110,6 +110,7 @@
                 @on-page-change="PageChangeSales"
                 @on-per-page-change="onPerPageChangeSales"
                 @on-search="onSearch_sales"
+                @on-sort-change="onSortChangeSales"
                 :search-options="{
                   placeholder: $t('Search_this_table'),
                   enabled: true,
@@ -159,6 +160,7 @@
                 @on-page-change="PageChangePurchases"
                 @on-per-page-change="onPerPageChangePurchases"
                 @on-search="onSearch_purchases"
+                @on-sort-change="onSortChangePurchases"
                 :search-options="{
                   placeholder: $t('Search_this_table'),
                   enabled: true,
@@ -208,6 +210,7 @@
                 @on-page-change="PageChangeQuotation"
                 @on-per-page-change="onPerPageChangeQuotation"
                 @on-search="onSearch_quotations"
+                @on-sort-change="onSortChangeQuotations"
                 :search-options="{
                   placeholder: $t('Search_this_table'),
                   enabled: true,
@@ -251,6 +254,7 @@
                 @on-page-change="PageChangeSalesReturn"
                 @on-per-page-change="onPerPageChangeSalesReturn"
                 @on-search="onSearch_sales_returns"
+                @on-sort-change="onSortChangeSalesReturns"
                 :search-options="{
                   placeholder: $t('Search_this_table'),
                   enabled: true,
@@ -301,6 +305,7 @@
                 @on-page-change="PageChangePurchaseReturn"
                 @on-per-page-change="onPerPageChangePurchaseReturn"
                 @on-search="onSearch_purchase_returns"
+                @on-sort-change="onSortChangePurchaseReturns"
                 :search-options="{
                   placeholder: $t('Search_this_table'),
                   enabled: true,
@@ -351,6 +356,7 @@
                 @on-page-change="PageChangeReceipts"
                 @on-per-page-change="onPerPageChangeReceipts"
                 @on-search="onSearch_receipts"
+                @on-sort-change="onSortChangeReceipts"
                 :search-options="{
                   placeholder: $t('Search_this_table'),
                   enabled: true,
@@ -383,6 +389,7 @@
                 @on-page-change="PageChangePayments"
                 @on-per-page-change="onPerPageChangePayments"
                 @on-search="onSearch_payments"
+                @on-sort-change="onSortChangePayments"
                 :search-options="{
                   placeholder: $t('Search_this_table'),
                   enabled: true,
@@ -508,6 +515,8 @@ export default {
       purchases_page: 1,
       search_sales: "",
       search_purchases: "",
+      sort_sales: { field: "date", type: "desc" },
+      sort_purchases: { field: "date", type: "desc" },
 
       // Quotations
       quotations: [],
@@ -515,6 +524,7 @@ export default {
       limit_quotations: 10,
       quotations_page: 1,
       search_quotations: "",
+      sort_quotations: { field: "date", type: "desc" },
 
       // Returns
       sales_returns: [],
@@ -522,12 +532,14 @@ export default {
       limit_sales_returns: 10,
       sales_returns_page: 1,
       search_sales_returns: "",
+      sort_sales_returns: { field: "date", type: "desc" },
 
       purchase_returns: [],
       totalRows_purchase_returns: 0,
       limit_purchase_returns: 10,
       purchase_returns_page: 1,
       search_purchase_returns: "",
+      sort_purchase_returns: { field: "date", type: "desc" },
 
       // Payments / Receipts
       receipts: [],
@@ -535,12 +547,14 @@ export default {
       limit_receipts: 10,
       receipts_page: 1,
       search_receipts: "",
+      sort_receipts: { field: "date", type: "desc" },
 
       payments: [],
       totalRows_payments: 0,
       limit_payments: 10,
       payments_page: 1,
       search_payments: "",
+      sort_payments: { field: "date", type: "desc" },
 
       // Ledger
       ledger: [],
@@ -570,6 +584,7 @@ export default {
     },
     columns_purchases() {
       return [
+        { label: this.$t("date"), field: "date" },
         { label: this.$t("Reference"), field: "Ref" },
         { label: "Items", field: "items" },
         { label: this.$t("warehouse"), field: "warehouse_name", width: "120px" },
@@ -591,6 +606,7 @@ export default {
     },
     columns_sales_returns() {
       return [
+        { label: this.$t("date"), field: "date" },
         { label: this.$t("Reference"), field: "Ref" },
         { label: this.$t("Sale_Ref"), field: "sale_ref" },
         { label: this.$t("warehouse"), field: "warehouse_name", width: "120px" },
@@ -603,6 +619,7 @@ export default {
     },
     columns_purchase_returns() {
       return [
+        { label: this.$t("date"), field: "date" },
         { label: this.$t("Reference"), field: "Ref" },
         { label: this.$t("Purchase_Ref"), field: "purchase_ref" },
         { label: this.$t("warehouse"), field: "warehouse_name", width: "120px" },
@@ -700,6 +717,8 @@ export default {
           page: page,
           limit: this.limit_sales,
           search: this.search_sales,
+          SortField: this.sort_sales.field,
+          SortType: this.sort_sales.type,
           id: this.id,
           warehouse_id: this.warehouse_id || undefined,
           start_date: this.start_date || undefined,
@@ -723,6 +742,13 @@ export default {
       this.search_sales = val.searchTerm;
       this.Get_Sales(1);
     },
+    onSortChangeSales(params) {
+      this.sort_sales = {
+        field: params[0].field,
+        type: params[0].type
+      };
+      this.Get_Sales(1);
+    },
 
     Get_Purchases(page) {
       axios.get(`report/provider_purchases`, {
@@ -730,6 +756,8 @@ export default {
           page: page,
           limit: this.limit_purchases,
           search: this.search_purchases,
+          SortField: this.sort_purchases.field,
+          SortType: this.sort_purchases.type,
           id: this.id,
           warehouse_id: this.warehouse_id || undefined,
           start_date: this.start_date || undefined,
@@ -753,6 +781,13 @@ export default {
       this.search_purchases = val.searchTerm;
       this.Get_Purchases(1);
     },
+    onSortChangePurchases(params) {
+      this.sort_purchases = {
+        field: params[0].field,
+        type: params[0].type
+      };
+      this.Get_Purchases(1);
+    },
 
     // ------ QUOTATIONS GETTER ------
     Get_Quotations(page) {
@@ -761,6 +796,8 @@ export default {
           page: page,
           limit: this.limit_quotations,
           search: this.search_quotations,
+          SortField: this.sort_quotations.field,
+          SortType: this.sort_quotations.type,
           id: this.id,
           warehouse_id: this.warehouse_id || undefined,
           start_date: this.start_date || undefined,
@@ -784,6 +821,13 @@ export default {
       this.search_quotations = val.searchTerm;
       this.Get_Quotations(1);
     },
+    onSortChangeQuotations(params) {
+      this.sort_quotations = {
+        field: params[0].field,
+        type: params[0].type
+      };
+      this.Get_Quotations(1);
+    },
 
     // ------ RETURNS GETTERS ------
     Get_Customer_Returns(page) {
@@ -792,6 +836,8 @@ export default {
           page: page,
           limit: this.limit_sales_returns,
           search: this.search_sales_returns,
+          SortField: this.sort_sales_returns.field,
+          SortType: this.sort_sales_returns.type,
           id: this.id,
           warehouse_id: this.warehouse_id || undefined,
           start_date: this.start_date || undefined,
@@ -815,6 +861,13 @@ export default {
       this.search_sales_returns = val.searchTerm;
       this.Get_Customer_Returns(1);
     },
+    onSortChangeSalesReturns(params) {
+      this.sort_sales_returns = {
+        field: params[0].field,
+        type: params[0].type
+      };
+      this.Get_Customer_Returns(1);
+    },
 
     Get_Supplier_Returns(page) {
       axios.get(`report/provider_returns`, {
@@ -822,6 +875,8 @@ export default {
           page: page,
           limit: this.limit_purchase_returns,
           search: this.search_purchase_returns,
+          SortField: this.sort_purchase_returns.field,
+          SortType: this.sort_purchase_returns.type,
           id: this.id,
           warehouse_id: this.warehouse_id || undefined,
           start_date: this.start_date || undefined,
@@ -845,6 +900,13 @@ export default {
       this.search_purchase_returns = val.searchTerm;
       this.Get_Supplier_Returns(1);
     },
+    onSortChangePurchaseReturns(params) {
+      this.sort_purchase_returns = {
+        field: params[0].field,
+        type: params[0].type
+      };
+      this.Get_Supplier_Returns(1);
+    },
 
     // ------ RECEIPTS & PAYMENTS GETTERS ------
     Get_Customer_Payments(page) {
@@ -853,6 +915,8 @@ export default {
           page: page,
           limit: this.limit_receipts,
           search: this.search_receipts,
+          SortField: this.sort_receipts.field,
+          SortType: this.sort_receipts.type,
           id: this.id,
           warehouse_id: this.warehouse_id || undefined,
           start_date: this.start_date || undefined,
@@ -876,6 +940,13 @@ export default {
       this.search_receipts = val.searchTerm;
       this.Get_Customer_Payments(1);
     },
+    onSortChangeReceipts(params) {
+      this.sort_receipts = {
+        field: params[0].field,
+        type: params[0].type
+      };
+      this.Get_Customer_Payments(1);
+    },
 
     Get_Supplier_Payments(page) {
       axios.get(`report/provider_payments`, {
@@ -883,6 +954,8 @@ export default {
           page: page,
           limit: this.limit_payments,
           search: this.search_payments,
+          SortField: this.sort_payments.field,
+          SortType: this.sort_payments.type,
           id: this.id,
           warehouse_id: this.warehouse_id || undefined,
           start_date: this.start_date || undefined,
@@ -904,6 +977,13 @@ export default {
     },
     onSearch_payments(val) {
       this.search_payments = val.searchTerm;
+      this.Get_Supplier_Payments(1);
+    },
+    onSortChangePayments(params) {
+      this.sort_payments = {
+        field: params[0].field,
+        type: params[0].type
+      };
       this.Get_Supplier_Payments(1);
     },
 

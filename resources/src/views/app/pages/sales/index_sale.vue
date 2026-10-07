@@ -730,7 +730,7 @@ export default {
       isLoading: true,
       serverParams: {
         sort: {
-          field: "id",
+          field: "date",
           type: "desc"
         },
         page: 1,

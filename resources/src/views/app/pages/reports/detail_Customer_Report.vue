@@ -388,6 +388,12 @@ export default {
     columns_sales() {
       return [
         {
+          label: this.$t("date"),
+          field: "date",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
+        {
           label: this.$t("Reference"),
           field: "Ref",
           tdClass: "text-left",
@@ -459,6 +465,12 @@ export default {
     },
     columns_returns() {
       return [
+        {
+          label: this.$t("date"),
+          field: "date",
+          tdClass: "text-left",
+          thClass: "text-left"
+        },
         {
           label: this.$t("Reference"),
           field: "Ref",

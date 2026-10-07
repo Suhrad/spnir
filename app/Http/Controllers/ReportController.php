@@ -141,8 +141,11 @@ class ReportController extends BaseController
         if ($perPage == "-1") {
             $perPage = $totalRows;
         }
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $sales = $sales->offset($offSet)
             ->limit($perPage)
+            ->orderBy($order, $dir)
             ->orderBy('id', 'desc')
             ->get();
 
@@ -258,9 +261,11 @@ class ReportController extends BaseController
         if ($perPage == "-1") {
             $perPage = $totalRows;
         }
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $payments = $query->offset($offSet)
             ->limit($perPage)
-            ->orderBy('date', 'desc')
+            ->orderBy($order, $dir)
             ->get();
 
         return response()->json([
@@ -322,8 +327,11 @@ class ReportController extends BaseController
         if ($perPage == "-1") {
             $perPage = $totalRows;
         }
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $Quotations = $Quotations->offset($offSet)
             ->limit($perPage)
+            ->orderBy($order, $dir)
             ->orderBy('id', 'desc')
             ->get();
 
@@ -407,13 +415,17 @@ class ReportController extends BaseController
         if ($perPage == "-1") {
             $perPage = $totalRows;
         }
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $SaleReturn = $SaleReturn->offset($offSet)
             ->limit($perPage)
+            ->orderBy($order, $dir)
             ->orderBy('id', 'desc')
             ->get();
 
         foreach ($SaleReturn as $Sale_Return) {
             $item['id'] = $Sale_Return->id;
+            $item['date'] = $Sale_Return->date;
             $item['Ref'] = $Sale_Return->Ref;
             $item['statut'] = $Sale_Return->statut;
             $item['client_name'] = $Sale_Return['client']->name;
@@ -446,8 +458,8 @@ class ReportController extends BaseController
         $pageStart = \Request::get('page', 1);
         // Start displaying items from this number;
         $offSet = ($pageStart * $perPage) - $perPage;
-        $order = $request->SortField;
-        $dir = $request->SortType;
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $helpers = new helpers();
         // Filter fields With Params to retrieve
         $param = array(
@@ -504,6 +516,7 @@ class ReportController extends BaseController
         $Purchases = $Filtred->offset($offSet)
             ->limit($perPage)
             ->orderBy('purchases.' . $order, $dir)
+            ->orderBy('purchases.id', 'desc')
             ->get();
 
         foreach ($Purchases as $Purchase) {
@@ -565,8 +578,8 @@ class ReportController extends BaseController
         $pageStart = \Request::get('page', 1);
         // Start displaying items from this number;
         $offSet = ($pageStart * $perPage) - $perPage;
-        $order = $request->SortField;
-        $dir = $request->SortType;
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $helpers = new helpers();
         // Filter fields With Params to retrieve
 
@@ -647,6 +660,7 @@ class ReportController extends BaseController
         $Sales = $Filtred->offset($offSet)
             ->limit($perPage)
             ->orderBy('sales.' . $order, $dir)
+            ->orderBy('sales.id', 'desc')
             ->get();
 
         foreach ($Sales as $Sale) {
@@ -771,8 +785,11 @@ class ReportController extends BaseController
         if ($perPage == "-1") {
             $perPage = $totalRows;
         }
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $purchases = $purchases->offset($offSet)
             ->limit($perPage)
+            ->orderBy($order, $dir)
             ->orderBy('id', 'desc')
             ->get();
 
@@ -860,8 +877,12 @@ class ReportController extends BaseController
         if ($perPage == "-1") {
             $perPage = $totalRows;
         }
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
+        $orderCol = in_array($order, ['date', 'id', 'montant', 'Ref']) ? 'payment_purchases.' . $order : 'payment_purchases.date';
         $payments = $payments->offset($offSet)
             ->limit($perPage)
+            ->orderBy($orderCol, $dir)
             ->orderBy('payment_purchases.id', 'desc')
             ->get();
 
@@ -930,13 +951,17 @@ class ReportController extends BaseController
         if ($perPage == "-1") {
             $perPage = $totalRows;
         }
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $PurchaseReturn = $PurchaseReturn->offset($offSet)
             ->limit($perPage)
+            ->orderBy($order, $dir)
             ->orderBy('id', 'desc')
             ->get();
 
         foreach ($PurchaseReturn as $Purchase_Return) {
             $item['id'] = $Purchase_Return->id;
+            $item['date'] = $Purchase_Return->date;
             $item['Ref'] = $Purchase_Return->Ref;
             $item['statut'] = $Purchase_Return->statut;
             $item['purchase_ref'] = $Purchase_Return['purchase'] ? $Purchase_Return['purchase']->Ref : '---';
@@ -3889,8 +3914,8 @@ class ReportController extends BaseController
         $pageStart = \Request::get('page', 1);
         // Start displaying items from this number;
         $offSet = ($pageStart * $perPage) - $perPage;
-        $order = $request->SortField;
-        $dir = $request->SortType;
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $helpers = new helpers();
         // Filter fields With Params to retrieve
         $param = array(
@@ -3988,6 +4013,7 @@ class ReportController extends BaseController
             ->offset($offSet)
             ->limit($perPage)
             ->orderBy($order, $dir)
+            ->orderBy('id', 'desc')
             ->get();
 
         foreach ($sale_details as $detail) {
@@ -4070,8 +4096,8 @@ class ReportController extends BaseController
         $pageStart = \Request::get('page', 1);
         // Start displaying items from this number;
         $offSet = ($pageStart * $perPage) - $perPage;
-        $order = $request->SortField;
-        $dir = $request->SortType;
+        $order = $request->SortField ?: 'id';
+        $dir = $request->SortType ?: 'desc';
         $helpers = new helpers();
         // Filter fields With Params to retrieve
         $param = array(
@@ -4158,6 +4184,7 @@ class ReportController extends BaseController
             ->offset($offSet)
             ->limit($perPage)
             ->orderBy($order, $dir)
+            ->orderBy('id', 'desc')
             ->get();
 
         foreach ($purchase_details as $detail) {

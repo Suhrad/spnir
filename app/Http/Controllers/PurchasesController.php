@@ -59,8 +59,8 @@ class PurchasesController extends BaseController
         $pageStart = \Request::get('page', 1);
         // Start displaying items from this number;
         $offSet = ($pageStart * $perPage) - $perPage;
-        $order = $request->SortField;
-        $dir = $request->SortType;
+        $order = $request->SortField ?: 'date';
+        $dir = $request->SortType ?: 'desc';
         $helpers = new helpers();
         // Filter fields With Params to retrieve
         $param = array(
@@ -124,6 +124,7 @@ class PurchasesController extends BaseController
         $Purchases = $Filtred->offset($offSet)
             ->limit($perPage)
             ->orderBy($order, $dir)
+            ->orderBy('id', 'desc')
             ->get();
 
         foreach ($Purchases as $Purchase) {
