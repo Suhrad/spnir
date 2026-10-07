@@ -152,7 +152,7 @@
             </b-card>
 
             <!-- Opening Stock per warehouse (optional) -->
-            <b-card class="mt-3" :header="$t('OpeningStock')" v-if="warehouses.length > 0">
+            <b-card class="mt-3" :header="$t('OpeningStock')" v-if="warehouses && warehouses.length > 0">
               <b-row>
                 <b-col
                   md="6"
@@ -161,7 +161,7 @@
                   :key="wh.id"
                 >
                   <h6 class="mb-1">{{ wh.name }}</h6>
-                  <b-form-group>
+                  <b-form-group v-if="product.warehouses && product.warehouses[wh.id]">
                     <b-form-input
                       type="number"
                       min="0"
@@ -605,15 +605,14 @@ export default {
           // Complete the animation of theprogress bar.
           NProgress.done();
           self.SubmitProcessing = false;
-          if (error.errors.code && error.errors.code.length > 0) {
+          if (error && error.errors && error.errors.code && error.errors.code.length > 0) {
             self.code_exist = error.errors.code[0];
             this.makeToast("danger", error.errors.code[0], this.$t("Failed"));
-          }else if(error.errors.variants && error.errors.variants.length > 0){
+          } else if (error && error.errors && error.errors.variants && error.errors.variants.length > 0) {
             this.makeToast("danger", error.errors.variants[0], this.$t("Failed"));
-          }else{
+          } else {
             this.makeToast("danger", this.$t("InvalidData"), this.$t("Failed"));
           }
-
         });
     }
   }, //end Methods

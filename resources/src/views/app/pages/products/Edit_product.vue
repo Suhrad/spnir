@@ -549,12 +549,12 @@ export default {
         .catch(error => {
             NProgress.done();
             self.SubmitProcessing = false;
-            if (error.errors.code && error.errors.code.length > 0) {
+            if (error && error.errors && error.errors.code && error.errors.code.length > 0) {
               self.code_exist = error.errors.code[0];
               this.makeToast("danger", error.errors.code[0], this.$t("Failed"));
-            }else if(error.errors.variants && error.errors.variants.length > 0){
+            } else if (error && error.errors && error.errors.variants && error.errors.variants.length > 0) {
               this.makeToast("danger", error.errors.variants[0], this.$t("Failed"));
-            }else{
+            } else {
               this.makeToast("danger", this.$t("InvalidData"), this.$t("Failed"));
             }
         });

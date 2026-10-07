@@ -316,6 +316,17 @@ Vue.config.devtools = false;
 
 import { loadI18n } from './plugins/i18n.loader';
 
+function hideLoadingWrap() {
+  const loadingWrap = document.getElementById('loading_wrap');
+  if (loadingWrap) {
+    loadingWrap.style.display = 'none';
+  }
+}
+
+// Safety timeout: ensure loader never freezes indefinitely even if network delays
+setTimeout(hideLoadingWrap, 2500);
+window.addEventListener('load', hideLoadingWrap);
+
 loadI18n().then(i18n => {
  store.commit('SetDefaultLanguage', { i18n, Language: i18n.locale });
   setupRouterGuards(i18n); // ✅ inject into router
@@ -326,7 +337,13 @@ loadI18n().then(i18n => {
     VueCookie,
     i18n, // vue-i18n will inject $i18n to all components
     render: h => h(App),
+    mounted() {
+      this.$nextTick(hideLoadingWrap);
+    }
   }).$mount("#app");
+}).catch(() => {
+  hideLoadingWrap();
 });
+
 
   
