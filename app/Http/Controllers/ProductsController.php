@@ -206,8 +206,16 @@ class ProductsController extends BaseController
     {
         $this->authorizeForUser($request->user('api'), 'create', Product::class);
 
+        $request->merge([
+            'type'            => $request->input('type') ?: 'is_single',
+            'Type_barcode'    => $request->input('Type_barcode') ?: 'CODE128',
+            'tax_method'      => $request->input('tax_method') ?: '1',
+            'discount_method' => $request->input('discount_method') ?: '1',
+            'cost'            => $request->filled('cost') ? $request->input('cost') : 0,
+            'price'           => $request->filled('price') ? $request->input('price') : 0,
+        ]);
+
         try {
-           
             // define validation rules for product
             $productRules = [
                 'code'         => [
@@ -567,10 +575,19 @@ class ProductsController extends BaseController
     {
 
         $this->authorizeForUser($request->user('api'), 'update', Product::class);
+
+        $request->merge([
+            'type'            => $request->input('type') ?: 'is_single',
+            'Type_barcode'    => $request->input('Type_barcode') ?: 'CODE128',
+            'tax_method'      => $request->input('tax_method') ?: '1',
+            'discount_method' => $request->input('discount_method') ?: '1',
+            'cost'            => $request->filled('cost') ? $request->input('cost') : 0,
+            'price'           => $request->filled('price') ? $request->input('price') : 0,
+        ]);
+
         try {
-            
-             // define validation rules for product
-             $productRules = [
+            // define validation rules for product
+            $productRules = [
                 'code'         => [
                     'required',
 
